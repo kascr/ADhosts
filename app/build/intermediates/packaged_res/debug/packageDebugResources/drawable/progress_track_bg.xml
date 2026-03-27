@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- 参考项目 barBg: border=#D0D7DE, 4dp圆角 -->
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="rectangle">
-    <solid android:color="#30363D" />
-    <corners android:radius="4dp" />
-</shape>

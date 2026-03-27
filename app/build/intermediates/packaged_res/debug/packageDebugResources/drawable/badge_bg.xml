@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- 参考项目 categoryBadge / levelBadge: 20dp圆角, 默认muted=#6E7781 -->
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="rectangle">
-    <solid android:color="#484F58" />
-    <corners android:radius="20dp" />
-</shape>

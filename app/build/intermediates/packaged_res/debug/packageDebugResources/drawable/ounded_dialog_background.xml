@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android">
-    <solid android:color="?attr/colorSurfaceContainerHigh"/> <!-- 使用主题变量适配暗黑模式 -->
-    <corners android:radius="16dp"/> <!-- 设置圆角半径 -->
-</shape>
