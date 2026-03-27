@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- 喇叭主体 -->
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M3,9 L3,15 L7,15 L13,20 L13,4 L7,9 Z" />
+    <!-- 小音量弧线 -->
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.8"
+        android:fillColor="@android:color/transparent"
+        android:pathData="M16,9 Q18,12 16,15" />
+    <!-- 大音量弧线 -->
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.8"
+        android:fillColor="@android:color/transparent"
+        android:pathData="M18.5,6.5 Q22,12 18.5,17.5" />
+</vector>

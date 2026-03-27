@@ -1,0 +1,214 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+3    package="com.kascr.adhosts"
+4    android:versionCode="117"
+5    android:versionName="1.1.7" >
+6
+7    <uses-sdk
+8        android:minSdkVersion="29"
+9        android:targetSdkVersion="35" />
+10    <!-- 查看网络连接 -->
+11    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" /> <!-- 运行前台服务 -->
+11-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:4:5-79
+11-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:4:22-76
+12    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" /> <!-- 此应用可显示在其他应用上方 -->
+12-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:5:5-77
+12-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:5:22-74
+13    <uses-permission android:name="android.permission.ACCESS_SUPERUSER" /> <!-- 允许应用获取存储 -->
+13-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:6:5-75
+13-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:6:22-72
+14    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+14-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:7:5-71
+14-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:7:22-68
+15    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+15-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:7:5-71
+15-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:7:22-68
+16    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+16-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:9:5-78
+16-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:9:22-76
+17    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+17-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:10:5-80
+17-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:10:22-78
+18    <uses-permission android:name="android.permission.INTERNET" />
+18-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:12:5-67
+18-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:12:22-64
+19    <uses-permission
+19-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:13:5-15:38
+20        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+20-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:14:9-65
+21        android:maxSdkVersion="32" />
+21-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:15:9-35
+22    <uses-permission
+22-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:16:5-18:38
+23        android:name="android.permission.READ_EXTERNAL_STORAGE"
+23-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:17:9-64
+24        android:maxSdkVersion="32" />
+24-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:18:9-35
+25
+26    <permission
+26-->[androidx.core:core:1.15.0] C:\Users\shang\.gradle\caches\8.9\transforms\f4a10f5d738784845ffcce876bea8838\transformed\core-1.15.0\AndroidManifest.xml:22:5-24:47
+27        android:name="com.kascr.adhosts.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+27-->[androidx.core:core:1.15.0] C:\Users\shang\.gradle\caches\8.9\transforms\f4a10f5d738784845ffcce876bea8838\transformed\core-1.15.0\AndroidManifest.xml:23:9-81
+28        android:protectionLevel="signature" />
+28-->[androidx.core:core:1.15.0] C:\Users\shang\.gradle\caches\8.9\transforms\f4a10f5d738784845ffcce876bea8838\transformed\core-1.15.0\AndroidManifest.xml:24:9-44
+29
+30    <uses-permission android:name="com.kascr.adhosts.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
+30-->[androidx.core:core:1.15.0] C:\Users\shang\.gradle\caches\8.9\transforms\f4a10f5d738784845ffcce876bea8838\transformed\core-1.15.0\AndroidManifest.xml:26:5-97
+30-->[androidx.core:core:1.15.0] C:\Users\shang\.gradle\caches\8.9\transforms\f4a10f5d738784845ffcce876bea8838\transformed\core-1.15.0\AndroidManifest.xml:26:22-94
+31
+32    <application
+32-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:20:5-59:19
+33        android:allowBackup="true"
+33-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:21:9-35
+34        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+34-->[androidx.core:core:1.15.0] C:\Users\shang\.gradle\caches\8.9\transforms\f4a10f5d738784845ffcce876bea8838\transformed\core-1.15.0\AndroidManifest.xml:28:18-86
+35        android:dataExtractionRules="@xml/data_extraction_rules"
+35-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:22:9-65
+36        android:debuggable="true"
+37        android:extractNativeLibs="false"
+38        android:fullBackupContent="@xml/backup_rules"
+38-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:23:9-54
+39        android:hardwareAccelerated="true"
+39-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:24:9-43
+40        android:icon="@mipmap/ic_launcher"
+40-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:25:9-43
+41        android:label="@string/app_name"
+41-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:26:9-41
+42        android:roundIcon="@mipmap/ic_launcher_round"
+42-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:27:9-54
+43        android:supportsRtl="true"
+43-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:28:9-35
+44        android:testOnly="true"
+45        android:theme="@style/AppTheme" >
+45-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:29:9-40
+46        <activity
+46-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:30:9-32:39
+47            android:name="com.kascr.adhosts.ui.activity.function.Metal"
+47-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:31:13-55
+48            android:exported="true" /> <!-- 金属检测 -->
+48-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:32:13-36
+49        <activity
+49-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:33:9-35:39
+50            android:name="com.kascr.adhosts.ui.activity.function.Decibel"
+50-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:34:13-57
+51            android:exported="true" /> <!-- 声音检测 -->
+51-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:35:13-36
+52        <activity
+52-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:36:9-44:20
+53            android:name="com.kascr.adhosts.ui.activity.StartActivity"
+53-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:37:13-54
+54            android:exported="true" > <!-- 启动页 -->
+54-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:38:13-36
+55            <intent-filter>
+55-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:39:13-43:29
+56                <action android:name="android.intent.action.MAIN" />
+56-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:40:17-69
+56-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:40:25-66
+57
+58                <category android:name="android.intent.category.LAUNCHER" />
+58-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:42:17-77
+58-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:42:27-74
+59            </intent-filter>
+60        </activity>
+61        <activity
+61-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:45:9-49:58
+62            android:name="com.kascr.adhosts.ui.activity.MainActivity"
+62-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:46:13-53
+63            android:exported="true"
+63-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:47:13-36
+64            android:theme="@style/AppTheme.NoAnimation"
+64-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:48:13-56
+65            android:windowSoftInputMode="adjustResize" />
+65-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:49:13-55
+66
+67        <!-- 订阅刷新广播接收器 -->
+68        <receiver
+68-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:52:9-58:20
+69            android:name="com.kascr.adhosts.ui.receiver.SubscriptionUpdateReceiver"
+69-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:53:13-67
+70            android:exported="false" >
+70-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:54:13-37
+71            <intent-filter>
+71-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:55:13-57:29
+72                <action android:name="com.kascr.myapplication.SUBSCRIPTION_UPDATED" />
+72-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:56:17-87
+72-->D:\code\android\ADhosts\app\src\main\AndroidManifest.xml:56:25-84
+73            </intent-filter>
+74        </receiver>
+75        <!-- Activity used to block background content while benchmarks are running -->
+76        <activity
+76-->[androidx.benchmark:benchmark:1.0.0-alpha03] C:\Users\shang\.gradle\caches\8.9\transforms\beab37dc1a880455bb2f8711520311a2\transformed\jetified-benchmark-1.0.0-alpha03\AndroidManifest.xml:34:9-37:20
+77            android:name="androidx.benchmark.IsolationActivity"
+77-->[androidx.benchmark:benchmark:1.0.0-alpha03] C:\Users\shang\.gradle\caches\8.9\transforms\beab37dc1a880455bb2f8711520311a2\transformed\jetified-benchmark-1.0.0-alpha03\AndroidManifest.xml:35:13-64
+78            android:theme="@android:style/Theme.Light.NoTitleBar.Fullscreen" >
+78-->[androidx.benchmark:benchmark:1.0.0-alpha03] C:\Users\shang\.gradle\caches\8.9\transforms\beab37dc1a880455bb2f8711520311a2\transformed\jetified-benchmark-1.0.0-alpha03\AndroidManifest.xml:36:13-77
+79        </activity>
+80
+81        <provider
+81-->[androidx.emoji2:emoji2:1.3.0] C:\Users\shang\.gradle\caches\8.9\transforms\910f05d2b857a0200651d014ce688a33\transformed\jetified-emoji2-1.3.0\AndroidManifest.xml:24:9-32:20
+82            android:name="androidx.startup.InitializationProvider"
+82-->[androidx.emoji2:emoji2:1.3.0] C:\Users\shang\.gradle\caches\8.9\transforms\910f05d2b857a0200651d014ce688a33\transformed\jetified-emoji2-1.3.0\AndroidManifest.xml:25:13-67
+83            android:authorities="com.kascr.adhosts.androidx-startup"
+83-->[androidx.emoji2:emoji2:1.3.0] C:\Users\shang\.gradle\caches\8.9\transforms\910f05d2b857a0200651d014ce688a33\transformed\jetified-emoji2-1.3.0\AndroidManifest.xml:26:13-68
+84            android:exported="false" >
+84-->[androidx.emoji2:emoji2:1.3.0] C:\Users\shang\.gradle\caches\8.9\transforms\910f05d2b857a0200651d014ce688a33\transformed\jetified-emoji2-1.3.0\AndroidManifest.xml:27:13-37
+85            <meta-data
+85-->[androidx.emoji2:emoji2:1.3.0] C:\Users\shang\.gradle\caches\8.9\transforms\910f05d2b857a0200651d014ce688a33\transformed\jetified-emoji2-1.3.0\AndroidManifest.xml:29:13-31:52
+86                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+86-->[androidx.emoji2:emoji2:1.3.0] C:\Users\shang\.gradle\caches\8.9\transforms\910f05d2b857a0200651d014ce688a33\transformed\jetified-emoji2-1.3.0\AndroidManifest.xml:30:17-75
+87                android:value="androidx.startup" />
+87-->[androidx.emoji2:emoji2:1.3.0] C:\Users\shang\.gradle\caches\8.9\transforms\910f05d2b857a0200651d014ce688a33\transformed\jetified-emoji2-1.3.0\AndroidManifest.xml:31:17-49
+88            <meta-data
+88-->[androidx.lifecycle:lifecycle-process:2.6.2] C:\Users\shang\.gradle\caches\8.9\transforms\37cac69181b1a1523c9051ffd07baf98\transformed\jetified-lifecycle-process-2.6.2\AndroidManifest.xml:29:13-31:52
+89                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+89-->[androidx.lifecycle:lifecycle-process:2.6.2] C:\Users\shang\.gradle\caches\8.9\transforms\37cac69181b1a1523c9051ffd07baf98\transformed\jetified-lifecycle-process-2.6.2\AndroidManifest.xml:30:17-78
+90                android:value="androidx.startup" />
+90-->[androidx.lifecycle:lifecycle-process:2.6.2] C:\Users\shang\.gradle\caches\8.9\transforms\37cac69181b1a1523c9051ffd07baf98\transformed\jetified-lifecycle-process-2.6.2\AndroidManifest.xml:31:17-49
+91            <meta-data
+91-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\shang\.gradle\caches\8.9\transforms\4bee6d36b46198e08760766b085512ed\transformed\jetified-profileinstaller-1.4.0\AndroidManifest.xml:29:13-31:52
+92                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
+92-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\shang\.gradle\caches\8.9\transforms\4bee6d36b46198e08760766b085512ed\transformed\jetified-profileinstaller-1.4.0\AndroidManifest.xml:30:17-85
+93                android:value="androidx.startup" />
+93-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\shang\.gradle\caches\8.9\transforms\4bee6d36b46198e08760766b085512ed\transformed\jetified-profileinstaller-1.4.0\AndroidManifest.xml:31:17-49
+94        </provider>
+95
+96        <receiver
+96-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\shang\.gradle\caches\8.9\transforms\4bee6d36b46198e08760766b085512ed\transformed\jetified-profileinstaller-1.4.0\AndroidManifest.xml:34:9-52:20
+97            android:name="androidx.profileinstaller.ProfileInstallReceiver"
+97-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\shang\.gradle\caches\8.9\transforms\4bee6d36b46198e08760766b085512ed\transformed\jetified-profileinstaller-1.4.0\AndroidManifest.xml:35:13-76
+98            android:directBootAware="false"
+98-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\shang\.gradle\caches\8.9\transforms\4bee6d36b46198e08760766b085512ed\transformed\jetified-profileinstaller-1.4.0\AndroidManifest.xml:36:13-44
+99            android:enabled="true"
+99-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\shang\.gradle\caches\8.9\transforms\4bee6d36b46198e08760766b085512ed\transformed\jetified-profileinstaller-1.4.0\AndroidManifest.xml:37:13-35
+100            android:exported="true"
+100-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\shang\.gradle\caches\8.9\transforms\4bee6d36b46198e08760766b085512ed\transformed\jetified-profileinstaller-1.4.0\AndroidManifest.xml:38:13-36
+101            android:permission="android.permission.DUMP" >
+101-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\shang\.gradle\caches\8.9\transforms\4bee6d36b46198e08760766b085512ed\transformed\jetified-profileinstaller-1.4.0\AndroidManifest.xml:39:13-57
+102            <intent-filter>
+102-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\shang\.gradle\caches\8.9\transforms\4bee6d36b46198e08760766b085512ed\transformed\jetified-profileinstaller-1.4.0\AndroidManifest.xml:40:13-42:29
+103                <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE" />
+103-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\shang\.gradle\caches\8.9\transforms\4bee6d36b46198e08760766b085512ed\transformed\jetified-profileinstaller-1.4.0\AndroidManifest.xml:41:17-91
+103-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\shang\.gradle\caches\8.9\transforms\4bee6d36b46198e08760766b085512ed\transformed\jetified-profileinstaller-1.4.0\AndroidManifest.xml:41:25-88
+104            </intent-filter>
+105            <intent-filter>
+105-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\shang\.gradle\caches\8.9\transforms\4bee6d36b46198e08760766b085512ed\transformed\jetified-profileinstaller-1.4.0\AndroidManifest.xml:43:13-45:29
+106                <action android:name="androidx.profileinstaller.action.SKIP_FILE" />
+106-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\shang\.gradle\caches\8.9\transforms\4bee6d36b46198e08760766b085512ed\transformed\jetified-profileinstaller-1.4.0\AndroidManifest.xml:44:17-85
+106-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\shang\.gradle\caches\8.9\transforms\4bee6d36b46198e08760766b085512ed\transformed\jetified-profileinstaller-1.4.0\AndroidManifest.xml:44:25-82
+107            </intent-filter>
+108            <intent-filter>
+108-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\shang\.gradle\caches\8.9\transforms\4bee6d36b46198e08760766b085512ed\transformed\jetified-profileinstaller-1.4.0\AndroidManifest.xml:46:13-48:29
+109                <action android:name="androidx.profileinstaller.action.SAVE_PROFILE" />
+109-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\shang\.gradle\caches\8.9\transforms\4bee6d36b46198e08760766b085512ed\transformed\jetified-profileinstaller-1.4.0\AndroidManifest.xml:47:17-88
+109-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\shang\.gradle\caches\8.9\transforms\4bee6d36b46198e08760766b085512ed\transformed\jetified-profileinstaller-1.4.0\AndroidManifest.xml:47:25-85
+110            </intent-filter>
+111            <intent-filter>
+111-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\shang\.gradle\caches\8.9\transforms\4bee6d36b46198e08760766b085512ed\transformed\jetified-profileinstaller-1.4.0\AndroidManifest.xml:49:13-51:29
+112                <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION" />
+112-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\shang\.gradle\caches\8.9\transforms\4bee6d36b46198e08760766b085512ed\transformed\jetified-profileinstaller-1.4.0\AndroidManifest.xml:50:17-95
+112-->[androidx.profileinstaller:profileinstaller:1.4.0] C:\Users\shang\.gradle\caches\8.9\transforms\4bee6d36b46198e08760766b085512ed\transformed\jetified-profileinstaller-1.4.0\AndroidManifest.xml:50:25-92
+113            </intent-filter>
+114        </receiver>
+115    </application>
+116
+117</manifest>

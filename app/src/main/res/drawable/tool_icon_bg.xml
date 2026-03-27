@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 参考项目 iconContainer: 40x40, borderRadius=10, backgroundColor动态设置 -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#2042A5F5" />
+    <corners android:radius="10dp" />
+</shape>

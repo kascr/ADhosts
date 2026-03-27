@@ -1,0 +1,42 @@
+[
+    {
+        "merged": "com.kascr.adhosts.app-mergeDebugResources-34:/layout/fragment_hosts.xml",
+        "source": "com.kascr.adhosts.app-main-37:/layout/fragment_hosts.xml"
+    },
+    {
+        "merged": "com.kascr.adhosts.app-mergeDebugResources-34:/layout/activity_start.xml",
+        "source": "com.kascr.adhosts.app-main-37:/layout/activity_start.xml"
+    },
+    {
+        "merged": "com.kascr.adhosts.app-mergeDebugResources-34:/layout/item_subscription.xml",
+        "source": "com.kascr.adhosts.app-main-37:/layout/item_subscription.xml"
+    },
+    {
+        "merged": "com.kascr.adhosts.app-mergeDebugResources-34:/layout/activity_main.xml",
+        "source": "com.kascr.adhosts.app-main-37:/layout/activity_main.xml"
+    },
+    {
+        "merged": "com.kascr.adhosts.app-mergeDebugResources-34:/layout/activity_metal.xml",
+        "source": "com.kascr.adhosts.app-main-37:/layout/activity_metal.xml"
+    },
+    {
+        "merged": "com.kascr.adhosts.app-mergeDebugResources-34:/layout/activity_decibel.xml",
+        "source": "com.kascr.adhosts.app-main-37:/layout/activity_decibel.xml"
+    },
+    {
+        "merged": "com.kascr.adhosts.app-mergeDebugResources-34:/layout/dialog_add_subscription.xml",
+        "source": "com.kascr.adhosts.app-main-37:/layout/dialog_add_subscription.xml"
+    },
+    {
+        "merged": "com.kascr.adhosts.app-mergeDebugResources-34:/layout/fragment_set.xml",
+        "source": "com.kascr.adhosts.app-main-37:/layout/fragment_set.xml"
+    },
+    {
+        "merged": "com.kascr.adhosts.app-mergeDebugResources-34:/layout/fragment_settings.xml",
+        "source": "com.kascr.adhosts.app-main-37:/layout/fragment_settings.xml"
+    },
+    {
+        "merged": "com.kascr.adhosts.app-mergeDebugResources-34:/layout/layout_custom_nav.xml",
+        "source": "com.kascr.adhosts.app-main-37:/layout/layout_custom_nav.xml"
+    }
+]

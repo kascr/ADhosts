@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="purple_200">#FFBB86FC</color>
+    <color name="purple_500">#FF6200EE</color>
+    <color name="purple_700">#FF3700B3</color>
+    <color name="teal_200">#FF03DAC5</color>
+    <color name="teal_700">#FF018786</color>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+
+    <!-- Dark Theme Colors (参考项目暗色主题) -->
+    <color name="colorPrimaryDarkTheme">#FF42A5F5</color>
+    <color name="colorPrimaryVariantDarkTheme">#FF1E88E5</color>
+    <color name="colorOnPrimaryDarkTheme">#FFFFFFFF</color>
+    <color name="colorSecondaryDarkTheme">#FF64B5F6</color>
+    <color name="colorSecondaryVariantDarkTheme">#FF42A5F5</color>
+    <color name="colorOnSecondaryDarkTheme">#FF000000</color>
+    <color name="colorSurfaceDarkTheme">#FF161B22</color>
+    <color name="colorOnSurfaceDarkTheme">#FFE6EDF3</color>
+    <color name="android_green">#FF3DDC84</color>
+</resources>

@@ -1,0 +1,121 @@
+<resources>
+    <string name="app_name">ADhosts控制器</string>
+    <!-- 导航 -->
+    <string name="setting">功能工具</string>
+    <string name="xit">Hosts 管理</string>
+    <!-- Hosts 界面 -->
+    <string name="add_subscription">添加订阅源</string>
+    <string name="update_subscription">更新</string>
+    <string name="open_hosts">开启拦截</string>
+    <string name="close_hosts">关闭拦截</string>
+    <string name="change_dns">更改DNS</string>
+    <string name="enabled">拦截已启用</string>
+    <string name="disabled">拦截已关闭</string>
+    <string name="action_enabled">已开启</string>
+    <string name="action_disabled">已关闭</string>
+    <string name="select_dns">选择 DNS 服务</string>
+    <string name="current_dns">当前 DNS</string>
+    <string name="restore_default">默认</string>
+    <string name="subscription_title">订阅源</string>
+    <string name="btn_add">添加</string>
+    <string name="empty_subscription">还没有订阅源</string>
+    <string name="empty_subscription_hint">点击右上角「添加」按钮添加 Hosts 订阅 URL</string>
+    <string name="subscription_loaded">已加载 %d 个订阅源</string>
+    <string name="btn_delete">删除</string>
+    <!-- 通知/Toast -->
+    <string name="no_root_msg">未检测到 Root 权限，应用即将退出</string>
+    <string name="module_installed_msg">模块已部署，请重启设备生效</string>
+    <string name="cleanup_done">清理完成</string>
+    <string name="wallpaper_saved">已保存到Download中</string>
+    <string name="script_running">已开启,重启恢复</string>
+    <string name="cancel">取消</string>
+    <string name="confirm">确定</string>
+    <string name="enter_url">请输入URL</string>
+    <string name="subscription_added">订阅已添加</string>
+    <string name="subscription_deleted">订阅已删除</string>
+    <!-- 功能工具界面 -->
+    <string name="section_sensor_tools">传感器工具</string>
+    <string name="tool_decibel">分贝仪</string>
+    <string name="tool_decibel_desc">实时监测环境噪音分贝值</string>
+    <string name="tool_sensor_tag">传感器</string>
+    <string name="tool_magnetic">金属检测</string>
+    <string name="tool_magnetic_desc">通过磁场变化检测附近金属物体</string>
+    <string name="section_cleanup">系统清理</string>
+    <string name="tool_clean_folder">清理空文件夹</string>
+    <string name="tool_clean_folder_desc">删除 SD 卡中的空目录</string>
+    <string name="tool_clean_file">清理空文件</string>
+    <string name="tool_clean_file_desc">删除 SD 卡中的空文件</string>
+    <string name="tool_extract_wallpaper">提取当前壁纸</string>
+    <string name="tool_extract_wallpaper_desc">将系统壁纸保存到下载目录</string>
+    <string name="section_debug">系统调试</string>
+    <string name="tool_usb_debug">USB 调试</string>
+    <string name="tool_usb_debug_desc">开启 USB 调试模式</string>
+    <string name="tool_root_tag">Root</string>
+    <string name="tool_wireless_debug">无线调试</string>
+    <string name="tool_wireless_debug_desc">开启无线 ADB（端口 5555）</string>
+    <string name="tool_disable_charge">禁止充电</string>
+    <string name="tool_disable_charge_desc">通过 dumpsys 模拟断开充电</string>
+    <string name="tool_enable_charge">恢复充电</string>
+    <string name="tool_enable_charge_desc">恢复正常充电状态</string>
+    <string name="section_other">其他</string>
+    <string name="tool_kill_player">杀死后台播放器</string>
+    <string name="tool_kill_player_desc">执行自定义脚本终止后台媒体进程</string>
+    <!-- 磁场检测界面 -->
+    <string name="metal_x_axis">X 轴</string>
+    <string name="metal_y_axis">Y 轴</string>
+    <string name="metal_z_axis">Z 轴</string>
+    <string name="metal_sensor_info">传感器信息</string>
+    <string name="metal_sensor_type_label">传感器类型</string>
+    <string name="metal_sensor_type_value">磁力计（Magnetometer）</string>
+    <string name="metal_update_rate">更新频率</string>
+    <string name="metal_unit_label">单位</string>
+    <string name="metal_unit_value">微特斯拉（μT）</string>
+    <string name="page_title_tools">功能工具</string>
+    <!-- 分贝仪界面 -->
+    <string name="decibel_not_measured">未测量</string>
+    <string name="decibel_current">当前分贝</string>
+    <string name="decibel_peak">峰值</string>
+    <string name="decibel_level_ref">噪音等级参考</string>
+    <string name="decibel_quiet">安静</string>
+    <string name="decibel_normal">正常</string>
+    <string name="decibel_noisy">嘈杂</string>
+    <string name="decibel_danger">危险</string>
+    <string name="decibel_start">开始测量</string>
+    <string name="decibel_stop">停止测量</string>
+    <!-- 磁场检测界面 -->
+    <string name="metal_sensor_unavailable">当前设备不支持磁力计传感器，\n或传感器不可用。</string>
+    <string name="metal_total_strength">磁场变化量 (δ)</string>
+    <string name="metal_normal_env">未检测到金属</string>
+    <string name="metal_three_axis">三轴磁场分量</string>
+    <string name="metal_calibrating">校准中…</string>
+    <string name="metal_no_metal">未检测到金属</string>
+    <string name="metal_weak_metal">检测到金属</string>
+    <string name="metal_medium_metal">检测到金属！</string>
+    <string name="metal_strong_metal">大量金属！！</string>
+    <string name="wireless_adb_enabled">无线 ADB 已开启: 5555</string>
+    <string name="exec_failed">执行失败：请检查 Root 权限</string>
+    <string name="script_not_found">未找到脚本文件</string>
+    <!-- 设置界面 -->
+    <string name="settings_title">设置</string>
+    <string name="settings_section_general">通用</string>
+    <string name="settings_section_subscription">订阅配置</string>
+    <string name="settings_language">切换语言</string>
+    <string name="settings_language_desc">跳随系统</string>
+    <string name="settings_language_current_zh">简体中文</string>
+    <string name="settings_import">导入订阅配置</string>
+    <string name="settings_import_desc">从 JSON 文件导入订阅源（自动去重）</string>
+    <string name="settings_export">导出订阅配置</string>
+    <string name="settings_export_desc">将订阅源列表导出为 JSON 文件</string>
+    <string name="settings_import_success">导入成功，共 %d 个订阅源</string>
+    <string name="settings_import_failed">导入失败：%s</string>
+    <string name="settings_export_success">导出成功，共 %d 个订阅源</string>
+    <string name="settings_export_failed">导出失败：%s</string>
+    <string name="settings_export_empty">暂无订阅源可导出</string>
+    <!-- Hosts 界面新增 -->
+    <string name="rules_enabled">已启用 %d 个规则</string>
+    <string name="hosts_disabled_hint">点击「开启拦截」以启用广告屏蔽</string>
+    <string name="subscription_title_count">订阅源 (%d)</string>
+    <string name="add_subscription_hint">输入 hosts 订阅源地址</string>
+    <string name="subscription_url_label">订阅地址</string>
+    <string name="add_subscription_tip">支持 http / https 格式的 hosts 文件链接</string>
+</resources>

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- U形磁铁左臂 -->
+    <path
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2.2"
+        android:fillColor="@android:color/transparent"
+        android:strokeLineCap="round"
+        android:pathData="M6,4 L6,14 Q6,19 12,19 Q18,19 18,14 L18,4" />
+    <!-- 左极 N -->
+    <path
+        android:fillColor="#FF4FC3F7"
+        android:pathData="M4,2 L8,2 L8,6 L4,6 Z" />
+    <!-- 右极 S -->
+    <path
+        android:fillColor="#FFE57373"
+        android:pathData="M16,2 L20,2 L20,6 L16,6 Z" />
+</vector>
