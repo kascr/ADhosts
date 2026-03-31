@@ -192,6 +192,6 @@ class SettingsFragment : BaseFragment<FragmentSettingsBinding>(R.layout.fragment
     }
 
     companion object {
-        const val ACTION_SUBSCRIPTION_UPDATED = "com.kascr.myapplication.SUBSCRIPTION_UPDATED"
+        const val ACTION_SUBSCRIPTION_UPDATED = "com.kascr.adhosts.SUBSCRIPTION_UPDATED"
     }
 }

@@ -53,7 +53,7 @@
             android:name=".ui.receiver.SubscriptionUpdateReceiver"
             android:exported="false">
             <intent-filter>
-                <action android:name="com.kascr.myapplication.SUBSCRIPTION_UPDATED" />
+                <action android:name="com.kascr.adhosts.SUBSCRIPTION_UPDATED" />
             </intent-filter>
         </receiver>
     </application>

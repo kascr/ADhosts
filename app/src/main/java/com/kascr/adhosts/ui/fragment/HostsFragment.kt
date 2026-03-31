@@ -167,7 +167,7 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
      */
     private fun applyMergedHosts() {
         lifecycleScope.launch(Dispatchers.IO) {
-            val sourcePath = "/data/data/com.kascr.myapplication/files/ADhosts"
+            val sourcePath = "/data/data/com.kascr.adhosts/files/ADhosts"
 
             // 准备执行命令列表
             val commands = mutableListOf(
