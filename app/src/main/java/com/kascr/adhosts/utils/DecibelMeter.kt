@@ -98,6 +98,8 @@ class DecibelMeter(
      */
     private val updateDbRunnable = object : Runnable {
         override fun run() {
+            // 守卫：若已停止则直接返回，防止竞争访问已释放的 AudioRecord
+            if (audioRecord == null) return
             audioRecord?.let { recorder ->
                 val buffer = ShortArray(BUFFER_SIZE)
                 val readResult = recorder.read(buffer, 0, buffer.size)

@@ -115,7 +115,12 @@ class SetFragment : BaseFragment<FragmentSetBinding>(R.layout.fragment_set) {
         // --- 其他 ---
 
         binding.killmp4.setOnClickListener {
-            val scriptPath = "${requireContext().getExternalFilesDir(null)}/Script/mp4.sh"
+            val externalDir = requireContext().getExternalFilesDir(null)
+            if (externalDir == null) {
+                Toast.makeText(requireContext(), getString(R.string.exec_failed), Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
+            val scriptPath = "${externalDir.absolutePath}/Script/mp4.sh"
             if (File(scriptPath).exists()) {
                 executeShellCommand(
                     "nohup sh \"$scriptPath\" >/dev/null 2>&1 &",

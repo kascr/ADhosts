@@ -22,7 +22,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="12dp"
-            android:background="@drawable/status_card_enabled_bg"
+            android:background="@drawable/status_card_disabled_bg"
             android:padding="20dp">
 
             <LinearLayout
@@ -58,7 +58,7 @@
                         android:id="@+id/statusText"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="@string/enabled"
+                        android:text="@string/disabled"
                         android:textColor="@android:color/white"
                         android:textSize="18sp"
                         android:textStyle="bold" />

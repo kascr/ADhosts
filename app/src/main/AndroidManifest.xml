@@ -5,7 +5,6 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" /> <!-- 此应用可显示在其他应用上方 -->
     <uses-permission android:name="android.permission.ACCESS_SUPERUSER" /> <!-- 允许应用获取存储 -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
-    <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
 
@@ -29,10 +28,10 @@
         android:theme="@style/AppTheme">
         <activity
             android:name=".ui.activity.function.Metal"
-            android:exported="true" /><!-- 金属检测 -->
+            android:exported="false" /><!-- 金属检测 -->
         <activity
             android:name=".ui.activity.function.Decibel"
-            android:exported="true" /><!-- 声音检测 -->
+            android:exported="false" /><!-- 声音检测 -->
         <activity
             android:name=".ui.activity.StartActivity"
             android:exported="true"><!-- 启动页 -->

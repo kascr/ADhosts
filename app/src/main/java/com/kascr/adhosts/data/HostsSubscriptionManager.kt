@@ -94,32 +94,58 @@ object HostsSubscriptionManager {
      * @param context 上下文
      */
     @Throws(Exception::class)
-    fun downloadAndMergeSubscriptions(context: Context) {
+    fun downloadAndMergeSubscriptions(context: Context): Int {
         val subscriptions = getSubscriptions(context)
         val urlList = subscriptions.map { it.url }
-        
-        if (urlList.isEmpty()) return
 
-        val mergedContent = StringBuilder()
-        // 添加文件头信息
-        mergedContent.append("# Merged ADhosts - ${System.currentTimeMillis()}\n")
-        mergedContent.append("127.0.0.1 localhost\n::1 localhost\n\n")
+        if (urlList.isEmpty()) return 0
+
+        // 使用 LinkedHashSet 对规则行去重，保留插入顺序
+        val seenRules = LinkedHashSet<String>()
+        // 固定基础条目，不计入广告规则数
+        seenRules.add("127.0.0.1 localhost")
+        seenRules.add("::1 localhost")
+
+        val headerLines = mutableListOf(
+            "# Merged ADhosts - ${System.currentTimeMillis()}",
+            "127.0.0.1 localhost",
+            "::1 localhost",
+            ""
+        )
+        val ruleLines = mutableListOf<String>()
 
         // 遍历下载每个订阅源
         for (urlString in urlList) {
             try {
                 val content = URL(urlString).readText()
-                mergedContent.append("# Source: $urlString\n")
-                mergedContent.append(content)
-                mergedContent.append("\n\n")
+                ruleLines.add("# Source: $urlString")
+                for (line in content.lines()) {
+                    val trimmed = line.trim()
+                    // 注释行和空行直接保留，不参与去重
+                    if (trimmed.isEmpty() || trimmed.startsWith("#")) {
+                        ruleLines.add(trimmed)
+                    } else {
+                        // 规则行去重：相同规则只保留第一次出现
+                        if (seenRules.add(trimmed)) {
+                            ruleLines.add(trimmed)
+                        }
+                    }
+                }
+                ruleLines.add("")
             } catch (e: Exception) {
-                // 如果单个下载失败，记录错误并继续下一个，保证整体流程不中断
-                mergedContent.append("# Failed to download: $urlString\n\n")
+                ruleLines.add("# Failed to download: $urlString")
+                ruleLines.add("")
             }
         }
 
-        // 将合并后的内容保存到应用私有目录，准备通过 Root 权限 dd 到系统
+        val allLines = headerLines + ruleLines
         val targetFile = File(context.filesDir, MERGED_HOSTS_NAME)
-        targetFile.writeText(mergedContent.toString())
+        targetFile.writeText(allLines.joinToString("\n"))
+
+        // 返回有效拦截规则数（以 0.0.0.0 或 127.0.0.1 开头，排除 localhost 基础条目）
+        return ruleLines.count { line ->
+            (line.startsWith("0.0.0.0 ") || line.startsWith("127.0.0.1 ")) &&
+                !line.contains("localhost")
+        }
     }
 }

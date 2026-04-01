@@ -114,7 +114,7 @@ class StartActivity : AppCompatActivity() {
         
         //处理模块安装
         val moduleZipName = "AD_lite-v1.0.0.zip"
-        val tempZipFile = File(getExternalFilesDir(null), moduleZipName)
+        val tempZipFile = File(filesDir, moduleZipName)
         
         // 复制 ZIP 到私有目录供安装命令调用
         copyAssetToPrivateStorage(this, moduleZipName)
@@ -167,7 +167,7 @@ class StartActivity : AppCompatActivity() {
      */
     private fun copyAssetToPrivateStorage(context: Context, assetFileName: String) {
         try {
-            val outputFile = File(context.getExternalFilesDir(null), assetFileName)
+            val outputFile = File(context.filesDir, assetFileName)
             
             // 如果文件已存在，则跳过复制
             if (outputFile.exists()) {

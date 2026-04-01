@@ -5,6 +5,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
+import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.RecyclerView
 import com.kascr.adhosts.R
 import com.kascr.adhosts.data.Subscription
@@ -31,8 +32,16 @@ class SubscriptionAdapter(
     override fun getItemCount(): Int = subscriptions.size
 
     fun updateData(newSubscriptions: List<Subscription>) {
+        val diffResult = DiffUtil.calculateDiff(object : DiffUtil.Callback() {
+            override fun getOldListSize() = subscriptions.size
+            override fun getNewListSize() = newSubscriptions.size
+            override fun areItemsTheSame(oldPos: Int, newPos: Int) =
+                subscriptions[oldPos].url == newSubscriptions[newPos].url
+            override fun areContentsTheSame(oldPos: Int, newPos: Int) =
+                subscriptions[oldPos] == newSubscriptions[newPos]
+        })
         subscriptions = newSubscriptions
-        notifyDataSetChanged()
+        diffResult.dispatchUpdatesTo(this)
     }
 
     inner class SubscriptionViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
@@ -42,12 +51,12 @@ class SubscriptionAdapter(
 
         fun bind(subscription: Subscription) {
             subscriptionText.text = subscription.url
-            
+
             // 点击删除按钮才执行真正的删除
             btnDelete.setOnClickListener {
                 onDeleteClick(subscription.url)
             }
-            
+
             // 重置内容卡片位置（防止复用时位置错乱）
             contentCard.translationX = 0f
         }
