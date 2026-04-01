@@ -17,13 +17,7 @@ local.properties
 *.apk
 *.ap_
 *.aab
-
-# 签名文件（敏感，不上传）
 *.keystore
 *.jks
-
-# 构建缓存
 **/build/
-
-# 系统文件
 Thumbs.db
