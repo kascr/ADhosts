@@ -1,10 +1,12 @@
 package com.kascr.adhosts.ui.fragment
 
 import android.app.Activity
+import android.Manifest
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.net.Uri
 import android.os.Bundle
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
@@ -19,7 +21,9 @@ import com.kascr.adhosts.R
 import com.kascr.adhosts.crash.ExpectedExitGuard
 import com.kascr.adhosts.data.HostsBackupCodec
 import com.kascr.adhosts.data.HostsSubscriptionManager
+import com.kascr.adhosts.data.HostsOperationLock
 import com.kascr.adhosts.data.ManualHostsRuleManager
+import com.kascr.adhosts.data.ScheduledHostsUpdates
 import com.kascr.adhosts.databinding.FragmentSettingsBinding
 import com.kascr.adhosts.ui.activity.MainActivity
 import com.kascr.adhosts.ui.base.BaseFragment
@@ -33,9 +37,16 @@ import java.util.Locale
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 class SettingsFragment : BaseFragment<FragmentSettingsBinding>(R.layout.fragment_settings) {
+
+    private val notificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (!granted && bindingOrNull != null) showToast(R.string.scheduled_update_permission_hint)
+    }
 
     private var crashTestTapCount = 0
     private var firstCrashTestTapAt = 0L
@@ -98,6 +109,7 @@ class SettingsFragment : BaseFragment<FragmentSettingsBinding>(R.layout.fragment
         val context = context ?: return
         updateCurrentLanguageLabel()
         updateCurrentBackgroundLabel()
+        updateScheduledSummary()
         val versionName = context.packageManager
             .getPackageInfo(context.packageName, 0).versionName
         binding.versionText.text = getString(R.string.version_name_label, versionName)
@@ -109,7 +121,46 @@ class SettingsFragment : BaseFragment<FragmentSettingsBinding>(R.layout.fragment
         binding.importButton.setOnClickListener { launchImportPicker() }
         binding.exportButton.setOnClickListener { launchExportPicker() }
         binding.qqGroupButton.setOnClickListener { joinQQGroup() }
+        binding.githubRepositoryButton.setOnClickListener { openGithubRepository() }
+        binding.scheduledUpdateButton.setOnClickListener { showScheduledUpdateDialog() }
         initCrashTestTrigger()
+    }
+
+    private fun updateScheduledSummary() {
+        val context = context ?: return
+        val label = when {
+            !ScheduledHostsUpdates.enabled(context) -> R.string.scheduled_update_off
+            ScheduledHostsUpdates.wifiOnly(context) -> R.string.scheduled_update_wifi
+            else -> R.string.scheduled_update_daily
+        }
+        binding.scheduledUpdateSummary.setText(label)
+    }
+
+    private fun showScheduledUpdateDialog() {
+        val context = requireContext()
+        val choices = arrayOf(
+            getString(R.string.scheduled_update_off),
+            getString(R.string.scheduled_update_daily),
+            getString(R.string.scheduled_update_wifi)
+        )
+        val selected = when {
+            !ScheduledHostsUpdates.enabled(context) -> 0
+            ScheduledHostsUpdates.wifiOnly(context) -> 2
+            else -> 1
+        }
+        val dialog = MaterialAlertDialogBuilder(context)
+            .setTitle(R.string.scheduled_update_title)
+            .setSingleChoiceItems(choices, selected) { selectionDialog, index ->
+                ScheduledHostsUpdates.configure(context, index != 0, index == 2)
+                updateScheduledSummary()
+                if (index != 0 && Build.VERSION.SDK_INT >= 33) {
+                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
+                selectionDialog.dismiss()
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .create()
+        GlassDialog.show(dialog)
     }
 
     private fun joinQQGroup() {
@@ -121,6 +172,18 @@ class SettingsFragment : BaseFragment<FragmentSettingsBinding>(R.layout.fragment
 
         if (!opened) {
             showToast(R.string.settings_qq_group_unavailable, long = true)
+        }
+    }
+
+    private fun openGithubRepository() {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(getString(R.string.settings_github_repository_url)))
+        val opened = runCatching {
+            startActivity(intent)
+            true
+        }.getOrDefault(false)
+
+        if (!opened) {
+            showToast(R.string.settings_github_unavailable, long = true)
         }
     }
 
@@ -319,40 +382,42 @@ class SettingsFragment : BaseFragment<FragmentSettingsBinding>(R.layout.fragment
                         error(getString(R.string.settings_import_no_valid_url))
                     }
 
-                    val previousSubscriptions = HostsSubscriptionManager.getSubscriptions(appContext)
-                    val previousManualRules = backup.manualRules?.let {
-                        ManualHostsRuleManager.getRules(appContext)
+                    HostsOperationLock.mutex.withLock {
+                        val previousSubscriptions = HostsSubscriptionManager.getSubscriptions(appContext)
+                        val previousManualRules = backup.manualRules?.let {
+                            ManualHostsRuleManager.getRules(appContext)
+                        }
+                        val previousMergedSnapshot =
+                            HostsSubscriptionManager.createMergedHostsSnapshot(appContext)
+                        try {
+                            HostsSubscriptionManager.saveSubscriptions(appContext, subscriptions)
+                            backup.manualRules?.let { ManualHostsRuleManager.saveRules(appContext, it) }
+                            // Never apply a merged file built from the previous configuration.
+                            HostsSubscriptionManager.clearMergedHostsCache(appContext)
+                        } catch (error: Exception) {
+                            runCatching {
+                                HostsSubscriptionManager.saveSubscriptions(
+                                    appContext,
+                                    previousSubscriptions
+                                )
+                            }
+                            previousManualRules?.let { oldRules ->
+                                runCatching { ManualHostsRuleManager.saveRules(appContext, oldRules) }
+                            }
+                            runCatching {
+                                HostsSubscriptionManager.restoreMergedHostsCache(
+                                    appContext,
+                                    previousMergedSnapshot
+                                )
+                            }
+                            throw error
+                        } finally {
+                            previousMergedSnapshot?.delete()
+                        }
+                        subscriptions.size to (
+                            backup.manualRules?.size ?: ManualHostsRuleManager.getRules(appContext).size
+                        )
                     }
-                    val previousMergedSnapshot =
-                        HostsSubscriptionManager.createMergedHostsSnapshot(appContext)
-                    try {
-                        HostsSubscriptionManager.saveSubscriptions(appContext, subscriptions)
-                        backup.manualRules?.let { ManualHostsRuleManager.saveRules(appContext, it) }
-                        // Never apply a merged file built from the previous configuration.
-                        HostsSubscriptionManager.clearMergedHostsCache(appContext)
-                    } catch (error: Exception) {
-                        runCatching {
-                            HostsSubscriptionManager.saveSubscriptions(
-                                appContext,
-                                previousSubscriptions
-                            )
-                        }
-                        previousManualRules?.let { oldRules ->
-                            runCatching { ManualHostsRuleManager.saveRules(appContext, oldRules) }
-                        }
-                        runCatching {
-                            HostsSubscriptionManager.restoreMergedHostsCache(
-                                appContext,
-                                previousMergedSnapshot
-                            )
-                        }
-                        throw error
-                    } finally {
-                        previousMergedSnapshot?.delete()
-                    }
-                    subscriptions.size to (
-                        backup.manualRules?.size ?: ManualHostsRuleManager.getRules(appContext).size
-                    )
                 }
                 if (bindingOrNull == null) return@launch
                 notifyHostsFragmentRefresh()

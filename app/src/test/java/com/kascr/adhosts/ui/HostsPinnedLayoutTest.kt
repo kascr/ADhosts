@@ -29,7 +29,6 @@ class HostsPinnedLayoutTest {
         val root = LayoutInflater.from(activity)
             .inflate(R.layout.fragment_hosts, null) as ViewGroup
         activity.setContentView(root)
-        root.findViewById<View>(R.id.manualRulesCard).visibility = View.VISIBLE
 
         val list = root.findViewById<RecyclerView>(R.id.recyclerView)
         val layoutManager = LinearLayoutManager(activity)

@@ -77,6 +77,16 @@ class MainActivity : BaseActivity<ActivityMainBinding>() {
         refreshCustomBackground()
     }
 
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (intent.hasExtra(EXTRA_INITIAL_TAB)) {
+            currentNavIndex = intent.getIntExtra(EXTRA_INITIAL_TAB, TAB_HOSTS)
+            binding.viewPager.setCurrentItem(currentNavIndex, false)
+            selectNavItem(currentNavIndex)
+        }
+    }
+
     override fun onSaveInstanceState(outState: Bundle) {
         outState.putInt(STATE_SELECTED_TAB, currentNavIndex)
         super.onSaveInstanceState(outState)

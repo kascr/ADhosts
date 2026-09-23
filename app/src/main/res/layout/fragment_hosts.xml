@@ -132,43 +132,40 @@
         </LinearLayout>
 
         <LinearLayout
-            android:id="@+id/manualRulesCard"
-            style="@style/Widget.ADHosts.InfoRow"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="10dp"
+            android:orientation="horizontal">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/domainQueryButton"
+                style="@style/Widget.ADHosts.PillButton.Neutral.Compact"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="4dp"
+                android:text="@string/domain_query_button"
+                app:icon="@drawable/ic_network" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/restorePreviousButton"
+                style="@style/Widget.ADHosts.PillButton.Neutral.Compact"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_marginStart="4dp"
+                android:text="@string/restore_previous_button"
+                app:icon="@drawable/ic_sync" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/pendingPreviewText"
+            style="@style/TextAppearance.ADHosts.RowSubtitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             android:layout_marginBottom="10dp"
             android:background="@drawable/hosts_panel_bg"
-            android:visibility="gone">
-
-            <FrameLayout
-                style="@style/Widget.ADHosts.ToolIconContainer"
-                android:background="@drawable/hosts_panel_icon_bg">
-
-                <ImageView
-                    style="@style/Widget.ADHosts.ToolIcon"
-                    android:contentDescription="@null"
-                    android:src="@drawable/ic_wrench"
-                    app:tint="@color/md_theme_primary" />
-            </FrameLayout>
-
-            <LinearLayout style="@style/Widget.ADHosts.ToolTextGroup">
-
-                <TextView
-                    style="@style/TextAppearance.ADHosts.RowTitle.Bold"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/manual_hosts_rules" />
-
-                <TextView
-                    android:id="@+id/manualRulesCountText"
-                    style="@style/TextAppearance.ADHosts.RowSubtitle"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content" />
-            </LinearLayout>
-
-            <ImageView
-                style="@style/Widget.ADHosts.RowChevron.Small"
-                android:contentDescription="@null"
-                android:src="@drawable/ic_chevron_right" />
-        </LinearLayout>
+            android:padding="16dp"
+            android:text="@string/update_preview_pending"
+            android:visibility="gone" />
 
         <LinearLayout
             android:layout_width="match_parent"

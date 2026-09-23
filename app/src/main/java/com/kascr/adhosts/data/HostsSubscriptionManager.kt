@@ -11,6 +11,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
 import java.net.HttpURLConnection
+import java.net.IDN
 import java.net.URI
 import java.net.URL
 import java.nio.file.AtomicMoveNotSupportedException
@@ -243,6 +244,74 @@ object HostsSubscriptionManager {
         return mergeSourceFiles(context, subscriptions, sourceFiles, manualRules)
     }
 
+    /** Builds a preview without changing the active source cache or merged hosts file. */
+    internal fun buildPreview(context: Context, directory: File): PreviewBuild {
+        val subscriptions = getSubscriptions(context).filter { it.enabled }
+        val manualRules = ManualHostsRuleManager.getRules(context)
+        require(subscriptions.isNotEmpty() || manualRules.isNotEmpty()) { "No enabled rules" }
+        if (!directory.isDirectory && !directory.mkdirs()) throw IOException("Cannot create preview directory")
+        val sources = mutableListOf<File>()
+        val fallback = mutableListOf<String>()
+        subscriptions.forEach { subscription ->
+            val cached = sourceFile(context, subscription.url, true)
+            val staged = File(directory, sourceFileName(subscription.url))
+            try {
+                downloadSourceToFile(subscription.url, staged)
+            } catch (error: Exception) {
+                if (!cached.isFile) throw IOException("${subscription.name}: ${error.message}", error)
+                Files.copy(cached.toPath(), staged.toPath(), StandardCopyOption.REPLACE_EXISTING)
+                fallback += subscription.name
+            }
+            sources += staged
+        }
+        val merged = File(directory, MERGED_HOSTS_NAME)
+        val count = mergeSourceFiles(context, subscriptions, sources, manualRules, merged)
+        return PreviewBuild(merged, count, fallback)
+    }
+
+    internal data class PreviewBuild(val merged: File, val ruleCount: Int, val cachedSources: List<String>)
+
+    internal fun commitPreview(context: Context, directory: File) {
+        val replacements = getSubscriptions(context).filter { it.enabled }.map { subscription ->
+            File(directory, sourceFileName(subscription.url)) to sourceFile(context, subscription.url, true)
+        } + (File(directory, MERGED_HOSTS_NAME) to File(context.filesDir, MERGED_HOSTS_NAME))
+        replacements.forEach { (staged, _) ->
+            if (!staged.isFile) throw IOException("Preview file missing: ${staged.name}")
+        }
+        val backupDirectory = File(directory, "rollback")
+        if (!backupDirectory.mkdirs()) throw IOException("Cannot create update rollback directory")
+        try {
+            val backups = replacements.mapIndexed { index, (_, target) ->
+                File(backupDirectory, "$index.old").also { backup ->
+                    if (target.isFile) Files.copy(target.toPath(), backup.toPath())
+                }
+            }
+            try {
+                replacements.forEach { (staged, target) ->
+                    val parent = target.parentFile ?: throw IOException("Preview target has no parent")
+                    if (!parent.isDirectory && !parent.mkdirs()) throw IOException("Cannot create source directory")
+                    val temporary = File.createTempFile("${target.name}.", ".new", parent)
+                    try {
+                        Files.copy(staged.toPath(), temporary.toPath(), StandardCopyOption.REPLACE_EXISTING)
+                        moveAtomically(temporary, target)
+                    } finally { temporary.delete() }
+                }
+            } catch (error: Exception) {
+                replacements.forEachIndexed { index, (_, target) ->
+                    runCatching {
+                        val backup = backups[index]
+                        if (backup.isFile) Files.copy(backup.toPath(), target.toPath(),
+                            StandardCopyOption.REPLACE_EXISTING)
+                        else Files.deleteIfExists(target.toPath())
+                    }.onFailure(error::addSuppressed)
+                }
+                throw error
+            }
+        } finally { backupDirectory.deleteRecursively() }
+    }
+
+    internal fun cachedSourceForQuery(context: Context, url: String): File = sourceFile(context, url, true)
+
     internal fun countEffectiveRules(lines: Sequence<String>): Int =
         lines.count(::isEffectiveHostsRule)
 
@@ -260,7 +329,7 @@ object HostsSubscriptionManager {
     private fun hostsFields(line: String): List<String> =
         line.substringBefore('#').trim().split(WHITESPACE_REGEX).filter(String::isNotEmpty)
 
-    private fun isNumericIpAddress(value: String): Boolean {
+    internal fun isNumericIpAddress(value: String): Boolean {
         if (value.contains(':')) {
             return value.count { it == ':' } >= 2 && IPV6_ADDRESS_REGEX.matches(value)
         }
@@ -338,7 +407,8 @@ object HostsSubscriptionManager {
         context: Context,
         subscriptions: List<Subscription>,
         sourceFiles: List<File>,
-        manualRules: List<ManualHostsRule>
+        manualRules: List<ManualHostsRule>,
+        target: File = File(context.filesDir, MERGED_HOSTS_NAME)
     ): Int {
         val cacheDirectory = context.cacheDir
         if (!cacheDirectory.isDirectory && !cacheDirectory.mkdirs()) {
@@ -359,7 +429,7 @@ object HostsSubscriptionManager {
             } finally {
                 bucketWriters.forEach { writer -> runCatching { writer.close() } }
             }
-            return writeMergedHosts(context, subscriptions, bucketFiles, manualRules)
+            return writeMergedHosts(subscriptions, bucketFiles, manualRules, target)
         } finally {
             workspace.deleteRecursively()
         }
@@ -382,7 +452,11 @@ object HostsSubscriptionManager {
                 hasHostsEntry = true
                 val address = fields.first()
                 for (rawHostname in fields.drop(1)) {
-                    val hostname = rawHostname.lowercase().trimEnd('.')
+                    val normalized = rawHostname.lowercase().trimEnd('.')
+                    val hostname = if (normalized.any { it.code > 127 }) {
+                        runCatching { IDN.toASCII(normalized, IDN.USE_STD3_ASCII_RULES) }
+                            .getOrNull() ?: continue
+                    } else normalized
                     if (
                         hostname.isEmpty() ||
                         hostname in LOCAL_HOST_NAMES ||
@@ -403,13 +477,12 @@ object HostsSubscriptionManager {
     }
 
     private fun writeMergedHosts(
-        context: Context,
         subscriptions: List<Subscription>,
         bucketFiles: List<File>,
-        manualRules: List<ManualHostsRule>
+        manualRules: List<ManualHostsRule>,
+        target: File
     ): Int {
-        val target = File(context.filesDir, MERGED_HOSTS_NAME)
-        val temporary = File.createTempFile("${target.name}.", ".merge", context.filesDir)
+        val temporary = File.createTempFile("${target.name}.", ".merge", target.parentFile)
         var ruleCount = 0
         try {
             FileOutputStream(temporary).use { output ->

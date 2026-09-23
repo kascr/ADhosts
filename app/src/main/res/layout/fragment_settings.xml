@@ -229,6 +229,45 @@
                 app:layout_constraintTop_toTopOf="parent" />
         </androidx.constraintlayout.widget.ConstraintLayout>
 
+        <LinearLayout
+            android:id="@+id/scheduledUpdateButton"
+            style="@style/Widget.ADHosts.SettingsRow"
+            android:layout_marginTop="@dimen/app_card_spacing"
+            android:background="@drawable/settings_export_card_bg"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageView
+                style="@style/Widget.ADHosts.SettingsRow.Icon"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_sync" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    style="@style/TextAppearance.ADHosts.RowTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/scheduled_update_title" />
+
+                <TextView
+                    android:id="@+id/scheduledUpdateSummary"
+                    style="@style/TextAppearance.ADHosts.RowSubtitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+            </LinearLayout>
+
+            <ImageView
+                style="@style/Widget.ADHosts.SettingsRow.Chevron"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_chevron_right" />
+        </LinearLayout>
+
         <TextView
             style="@style/TextAppearance.ADHosts.SettingsSectionHeader"
             android:layout_width="wrap_content"
@@ -236,7 +275,7 @@
             android:paddingHorizontal="20dp"
             android:paddingTop="28dp"
             android:paddingBottom="10dp"
-            android:text="@string/settings_section_community" />
+            android:text="@string/settings_section_about" />
 
         <androidx.constraintlayout.widget.ConstraintLayout
             android:id="@+id/qqGroupButton"
@@ -272,6 +311,57 @@
 
             <ImageView
                 android:id="@+id/qqGroupChevron"
+                style="@style/Widget.ADHosts.SettingsRow.Chevron"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_chevron_right"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/githubRepositoryButton"
+            style="@style/Widget.ADHosts.SettingsRow"
+            android:layout_marginTop="@dimen/app_card_spacing"
+            android:background="@drawable/settings_qq_group_card_bg">
+
+            <ImageView
+                android:id="@+id/githubRepositoryIcon"
+                style="@style/Widget.ADHosts.SettingsRow.Icon"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_link"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="16dp"
+                android:orientation="vertical"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/githubRepositoryChevron"
+                app:layout_constraintStart_toEndOf="@id/githubRepositoryIcon"
+                app:layout_constraintTop_toTopOf="parent">
+
+                <TextView
+                    style="@style/TextAppearance.ADHosts.RowTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/settings_github_repository" />
+
+                <TextView
+                    style="@style/TextAppearance.ADHosts.RowSubtitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:text="@string/settings_github_repository_url" />
+            </LinearLayout>
+
+            <ImageView
+                android:id="@+id/githubRepositoryChevron"
                 style="@style/Widget.ADHosts.SettingsRow.Chevron"
                 android:contentDescription="@null"
                 android:src="@drawable/ic_chevron_right"

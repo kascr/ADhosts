@@ -19,6 +19,9 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.textfield.TextInputEditText
 import com.kascr.adhosts.R
 import com.kascr.adhosts.data.HostsSubscriptionManager
+import com.kascr.adhosts.data.HostsOperationLock
+import com.kascr.adhosts.data.HostsUpdateManager
+import com.kascr.adhosts.data.UpdatePreview
 import com.kascr.adhosts.data.ManualHostsRuleManager
 import com.kascr.adhosts.data.RecommendedHosts
 import com.kascr.adhosts.databinding.FragmentHostsBinding
@@ -30,7 +33,6 @@ import com.topjohnwu.superuser.Shell
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
@@ -90,6 +92,8 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
         if (bindingOrNull == null) return
         loadSubscriptions()
         refreshManualRulesSummary()
+        refreshPendingPreview()
+        binding.restorePreviousButton.isEnabled = HostsUpdateManager.hasPrevious(requireContext())
         updateStatusUI()
     }
 
@@ -133,6 +137,7 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
                         if (bindingOrNull == null) return@ui
                         loadSubscriptions()
                         refreshManualRulesSummary()
+                        refreshPendingPreview()
                         updateStatusUI()
                         if (failure == null) {
                             showToast(R.string.subscription_deleted)
@@ -381,8 +386,13 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
         binding.closeButton.setOnClickListener { restoreDefaultHosts() }
         binding.recommendedButton.setOnClickListener { showRecommendedSubscriptionsDialog() }
         binding.outlinedButton.setOnClickListener { showAddSourceTypeDialog() }
-        binding.manualRulesCard.setOnClickListener { showManualRulesDialog() }
         binding.updateButton.setOnClickListener { syncSubscriptions() }
+        binding.domainQueryButton.setOnClickListener { showDomainQueryDialog() }
+        binding.restorePreviousButton.setOnClickListener { confirmRestorePrevious() }
+        binding.pendingPreviewText.setOnClickListener {
+            HostsUpdateManager.pendingPreview(requireContext())?.let(::showUpdatePreviewDialog)
+                ?: refreshPendingPreview()
+        }
         binding.dnsChip.setOnClickListener { showDnsSelectionDialog() }
     }
 
@@ -483,7 +493,8 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
     private suspend fun applyMergedHostsInternal(
         sourcePath: String,
         showFeedback: Boolean = true,
-        applyDns: Boolean = true
+        applyDns: Boolean = true,
+        recordSnapshot: Boolean = true
     ): Boolean {
         val commands = mutableListOf(
             "dd if=\"$sourcePath\" of=\"$systemHostsPath\" && chmod 644 \"$systemHostsPath\""
@@ -496,6 +507,9 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
         }
 
         val result = Shell.cmd(commands.joinToString(" && ")).exec()
+        if (result.isSuccess && recordSnapshot) {
+            runCatching { HostsUpdateManager.recordApplied(requireContext().applicationContext, File(sourcePath)) }
+        }
         val dnsApplied = if (result.isSuccess && applyDns) {
             currentDnsOption?.let(::applyDnsToSystem) ?: true
         } else result.isSuccess
@@ -713,26 +727,13 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
 
     private suspend fun syncSubscriptionsLocked(appContext: Context) {
         withContext(Dispatchers.IO) operation@{
-            if (isModuleUpdatePending()) {
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(appContext, R.string.module_update_pending_update, Toast.LENGTH_LONG).show()
-                }
-                return@operation
-            }
-
             try {
-                val wasApplied = isAppHostsConfigured()
-                val ruleCount = HostsSubscriptionManager.downloadAndMergeSubscriptions(appContext)
+                val preview = HostsUpdateManager.prepare(appContext)
                 withContext(Dispatchers.Main) ui@{
                     if (bindingOrNull == null) return@ui
                     loadSubscriptions()
-                }
-                when {
-                    !wasApplied -> withContext(Dispatchers.Main) {
-                        showToast(R.string.subscription_updated_not_applied)
-                    }
-                    ruleCount == 0 -> restoreDefaultHostsLocked()
-                    else -> applyMergedHostsInternal(mergedHostsFile(appContext).absolutePath)
+                    refreshPendingPreview()
+                    showUpdatePreviewDialog(preview)
                 }
             } catch (error: CancellationException) {
                 throw error
@@ -746,8 +747,207 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
         }
     }
 
+    private fun refreshPendingPreview() {
+        val context = context ?: return
+        val preview = HostsUpdateManager.pendingPreview(context)
+        binding.pendingPreviewText.visibility = if (preview == null) View.GONE else View.VISIBLE
+        if (preview != null) {
+            binding.pendingPreviewText.text = getString(R.string.update_preview_pending_counts,
+                preview.added, preview.removed, preview.changed)
+        }
+    }
+
+    private fun showUpdatePreviewDialog(preview: UpdatePreview) {
+        val details = buildString {
+            append(getString(R.string.update_preview_counts,
+                preview.added, preview.removed, preview.changed))
+            append('\n')
+            append(getString(R.string.update_preview_total, preview.ruleCount))
+            if (preview.cachedSources.isNotEmpty()) {
+                append("\n\n")
+                append(getString(R.string.update_preview_cached, preview.cachedSources.joinToString()))
+            }
+            if (!preview.hasChanges) {
+                append("\n\n")
+                append(getString(R.string.update_preview_no_changes))
+            }
+        }
+        val dialog = MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.update_preview_title)
+            .setMessage(details)
+            .setPositiveButton(R.string.update_preview_apply) { _, _ -> applyPendingPreview() }
+            .setNegativeButton(R.string.update_preview_discard) { _, _ ->
+                HostsUpdateManager.discard(requireContext())
+                refreshPendingPreview()
+            }
+            .create()
+        GlassDialog.show(dialog)
+    }
+
+    private fun applyPendingPreview() {
+        runHostsOperation { appContext ->
+            withContext(Dispatchers.IO) {
+                try {
+                    val preview = HostsUpdateManager.pendingPreview(appContext)
+                        ?: throw IOException(getString(R.string.update_preview_expired))
+                    val wasApplied = isAppHostsConfigured()
+                    if (wasApplied && isModuleUpdatePending()) {
+                        throw IOException(getString(R.string.module_update_pending_update))
+                    }
+                    if (wasApplied && preview.ruleCount == 0) {
+                        throw IOException(getString(R.string.rules_not_enough))
+                    }
+                    val candidate = HostsUpdateManager.pendingHosts(appContext)
+                    val currentSnapshot = File(File(appContext.filesDir, "last_applied_hosts"), "ADhosts")
+                    val oldMergedFile = mergedHostsFile(appContext)
+                    val matchesCurrentModule = wasApplied && oldMergedFile.isFile && Shell.cmd(
+                        "cmp -s \"${oldMergedFile.absolutePath}\" \"$systemHostsPath\" || " +
+                            "cmp -s \"${oldMergedFile.absolutePath}\" \"$metaModuleHostsPath\""
+                    ).exec().isSuccess
+                    if (matchesCurrentModule && !currentSnapshot.isFile) {
+                        runCatching { HostsUpdateManager.recordApplied(appContext, oldMergedFile) }
+                    }
+                    val oldApplied = currentSnapshot.takeIf(File::isFile)
+                        ?: oldMergedFile.takeIf { matchesCurrentModule }
+                    if (wasApplied && !applyMergedHostsInternal(candidate.absolutePath,
+                            showFeedback = false, applyDns = false, recordSnapshot = false)) {
+                        throw IOException(getString(R.string.exec_failed))
+                    }
+                    val historySaved: Boolean
+                    try {
+                        HostsUpdateManager.commit(appContext)
+                        historySaved = !wasApplied || runCatching {
+                            HostsUpdateManager.recordApplied(appContext, mergedHostsFile(appContext))
+                        }.isSuccess
+                    } catch (error: Exception) {
+                        if (wasApplied && oldApplied?.isFile == true) {
+                            applyMergedHostsInternal(oldApplied.absolutePath,
+                                showFeedback = false, applyDns = false, recordSnapshot = false)
+                        }
+                        throw error
+                    }
+                    withContext(Dispatchers.Main) ui@{
+                        if (bindingOrNull == null) return@ui
+                        loadSubscriptions()
+                        refreshPendingPreview()
+                        binding.restorePreviousButton.isEnabled = HostsUpdateManager.hasPrevious(appContext)
+                        showToast(when {
+                            !wasApplied -> R.string.subscription_updated_not_applied
+                            !historySaved -> R.string.update_preview_applied_no_restore
+                            else -> R.string.update_preview_applied
+                        })
+                        updateStatusUI()
+                    }
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (error: Exception) {
+                    withContext(Dispatchers.Main) ui@{
+                        if (bindingOrNull == null) return@ui
+                        showToast(getString(R.string.update_failed, error.message.orEmpty()), long = true)
+                        refreshPendingPreview()
+                    }
+                }
+            }
+        }
+    }
+
+    private fun showDomainQueryDialog() {
+        val input = TextInputEditText(requireContext()).apply {
+            hint = getString(R.string.domain_query_hint)
+            setSingleLine(true)
+            setPadding(32, 24, 32, 24)
+        }
+        val dialog = MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.domain_query_button)
+            .setView(input)
+            .setPositiveButton(R.string.domain_query_button) { _, _ ->
+                val raw = input.text?.toString().orEmpty()
+                val domain = HostsUpdateManager.normalizeDomain(raw)
+                if (domain == null) {
+                    showToast(R.string.domain_query_invalid)
+                    return@setPositiveButton
+                }
+                val appContext = requireContext().applicationContext
+                viewLifecycleOwner.lifecycleScope.launch {
+                    val match = withContext(Dispatchers.IO) {
+                        HostsUpdateManager.findDomain(appContext, domain, isAppHostsConfigured())
+                    }
+                    if (bindingOrNull == null) return@launch
+                    val details = if (match == null) getString(R.string.domain_query_no_match, domain)
+                    else getString(R.string.domain_query_match, match.hostname, match.address,
+                        if (match.manual) getString(R.string.manual_hosts_rules) else match.source,
+                        getString(if (match.applied) R.string.domain_query_applied else R.string.domain_query_not_applied))
+                    val message = "$details\n\n${getString(R.string.domain_query_limit)}"
+                    GlassDialog.show(MaterialAlertDialogBuilder(requireContext())
+                        .setTitle(R.string.domain_query_result)
+                        .setMessage(message)
+                        .setPositiveButton(android.R.string.ok, null)
+                        .create())
+                }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .create()
+        GlassDialog.show(dialog)
+    }
+
+    private fun confirmRestorePrevious() {
+        val dialog = MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.restore_previous_button)
+            .setMessage(R.string.restore_previous_confirm)
+            .setPositiveButton(R.string.restore_previous_button) { _, _ -> restorePrevious() }
+            .setNegativeButton(android.R.string.cancel, null)
+            .create()
+        GlassDialog.show(dialog)
+    }
+
+    private fun restorePrevious() {
+        runHostsOperation { appContext ->
+            withContext(Dispatchers.IO) {
+                try {
+                    if (isModuleUpdatePending()) throw IOException(getString(R.string.module_update_pending_update))
+                    val previous = HostsUpdateManager.previousHosts(appContext)
+                    val oldSubscriptions = HostsSubscriptionManager.getSubscriptions(appContext)
+                    val oldManual = ManualHostsRuleManager.getRules(appContext)
+                    val oldApplied = File(File(appContext.filesDir, "last_applied_hosts"), "ADhosts")
+                    val oldMerged = HostsSubscriptionManager.createMergedHostsSnapshot(appContext)
+                    if (!applyMergedHostsInternal(previous.absolutePath, false, false, false)) {
+                        oldMerged?.delete()
+                        throw IOException(getString(R.string.exec_failed))
+                    }
+                    try {
+                        HostsUpdateManager.restorePreviousConfiguration(appContext)
+                        HostsUpdateManager.recordApplied(appContext, mergedHostsFile(appContext))
+                    } catch (error: Exception) {
+                        runCatching { HostsSubscriptionManager.saveSubscriptions(appContext, oldSubscriptions) }
+                        runCatching { ManualHostsRuleManager.saveRules(appContext, oldManual) }
+                        runCatching { HostsSubscriptionManager.restoreMergedHostsCache(appContext, oldMerged) }
+                        if (oldApplied.isFile) applyMergedHostsInternal(oldApplied.absolutePath, false, false, false)
+                        throw error
+                    } finally {
+                        oldMerged?.delete()
+                    }
+                    withContext(Dispatchers.Main) ui@{
+                        if (bindingOrNull == null) return@ui
+                        loadSubscriptions()
+                        refreshManualRulesSummary()
+                        refreshPendingPreview()
+                        updateStatusUI()
+                        showToast(R.string.restore_previous_success)
+                    }
+                } catch (error: CancellationException) {
+                    throw error
+                } catch (error: Exception) {
+                    withContext(Dispatchers.Main) ui@{
+                        if (bindingOrNull == null) return@ui
+                        showToast(getString(R.string.update_failed, error.message.orEmpty()), long = true)
+                    }
+                }
+            }
+        }
+    }
+
     private fun runHostsOperation(operation: suspend (Context) -> Unit): Boolean {
-        if (!HOSTS_OPERATION_MUTEX.tryLock()) {
+        if (!HostsOperationLock.mutex.tryLock()) {
             showToast(R.string.hosts_operation_in_progress)
             return false
         }
@@ -764,7 +964,7 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
                     showToast(R.string.hosts_operation_failed_root_module, long = true)
                 }
             } finally {
-                HOSTS_OPERATION_MUTEX.unlock()
+                HostsOperationLock.mutex.unlock()
                 if (bindingOrNull != null) {
                     setHostsActionsEnabled(true)
                 }
@@ -780,6 +980,8 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
         dnsChip.isEnabled = enabled
         recommendedButton.isEnabled = enabled
         outlinedButton.isEnabled = enabled
+        domainQueryButton.isEnabled = enabled
+        restorePreviousButton.isEnabled = enabled && HostsUpdateManager.hasPrevious(requireContext())
     }
 
     private fun applyDnsToSystem(option: DnsOption): Boolean {
@@ -872,6 +1074,7 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
         binding.recyclerView.visibility = if (isEmpty) View.GONE else View.VISIBLE
         binding.emptyText.visibility = if (isEmpty) View.VISIBLE else View.GONE
         adapter.updateData(subscriptions)
+        refreshPendingPreview()
     }
 
     private fun refreshManualRulesSummary() {
@@ -881,10 +1084,13 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
                 ManualHostsRuleManager.getRules(appContext).size
             }
             if (bindingOrNull == null) return@launch
-            binding.manualRulesCard.visibility = if (count > 0) View.VISIBLE else View.GONE
-            binding.manualRulesCountText.text = getString(R.string.manual_hosts_count, count)
+            binding.subscriptionTitle.text = if (count > 0) {
+                getString(R.string.subscription_title_with_manual, adapter.itemCount, count)
+            } else getString(R.string.subscription_title_count, adapter.itemCount)
             if (adapter.itemCount == 0) {
-                binding.emptyText.visibility = if (count > 0) View.GONE else View.VISIBLE
+                binding.emptyText.visibility = View.VISIBLE
+                binding.emptyText.setText(if (count > 0) R.string.manual_only_hint
+                    else R.string.empty_subscription_hint)
             }
         }
     }
@@ -921,12 +1127,14 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
                 return@setOnClickListener
             }
 
-            if (HostsSubscriptionManager.addSubscription(requireContext(), name, url)) {
-                loadSubscriptions()
-                showToast(R.string.subscription_added)
-                syncSubscriptions()
-            } else {
-                showToast(R.string.subscription_exists)
+            when (addSubscriptionSafely(name, url)) {
+                true -> {
+                    loadSubscriptions()
+                    showToast(R.string.subscription_added)
+                    syncSubscriptions()
+                }
+                false -> showToast(R.string.subscription_exists)
+                null -> return@setOnClickListener
             }
             dialog.dismiss()
         }
@@ -935,6 +1143,21 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
             true
         }
         GlassDialog.show(dialog)
+    }
+
+    private fun addSubscriptionSafely(name: String, url: String): Boolean? {
+        if (!HostsOperationLock.mutex.tryLock()) {
+            showToast(R.string.hosts_operation_in_progress)
+            return null
+        }
+        return try {
+            HostsSubscriptionManager.addSubscription(requireContext(), name, url)
+        } catch (error: Exception) {
+            showToast(getString(R.string.update_failed, error.message.orEmpty()), long = true)
+            null
+        } finally {
+            HostsOperationLock.mutex.unlock()
+        }
     }
 
     private fun showAddSourceTypeDialog() {
@@ -1016,6 +1239,7 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
                             long = true
                         )
                         refreshManualRulesSummary()
+                        refreshPendingPreview()
                         updateStatusUI()
                     } else {
                         confirmButton.isEnabled = true
@@ -1144,17 +1368,13 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
         updateRecommendedSourceButton(addButton, isRecommendedSourceAdded(source))
 
         addButton.setOnClickListener {
-            val added = HostsSubscriptionManager.addSubscription(
-                requireContext(),
-                source.name,
-                source.subscriptionUrl
-            )
-            if (added) {
+            val added = addSubscriptionSafely(source.name, source.subscriptionUrl)
+            if (added == true) {
                 updateRecommendedSourceButton(addButton, added = true)
                 loadSubscriptions()
                 showToast(R.string.subscription_added)
                 syncSubscriptions()
-            } else {
+            } else if (added == false) {
                 updateRecommendedSourceButton(addButton, added = true)
                 showToast(R.string.subscription_exists)
             }
@@ -1257,7 +1477,6 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
         private const val MERGED_HOSTS_FILE_NAME = "ADhosts"
         private const val DEFAULT_HOSTS_CONTENT = "127.0.0.1 localhost\n::1 localhost\n"
         private val URL_REGEX = "^https://[^\\s/\$.?#][^\\s]*$".toRegex(RegexOption.IGNORE_CASE)
-        private val HOSTS_OPERATION_MUTEX = Mutex()
         private val LEGACY_DNS_PROPERTIES = listOf(
             "net.dns1",
             "net.dns2",
