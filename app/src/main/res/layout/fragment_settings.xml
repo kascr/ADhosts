@@ -370,6 +370,46 @@
                 app:layout_constraintTop_toTopOf="parent" />
         </androidx.constraintlayout.widget.ConstraintLayout>
 
+        <LinearLayout
+            android:id="@+id/appUpdateButton"
+            style="@style/Widget.ADHosts.SettingsRow"
+            android:layout_marginTop="@dimen/app_card_spacing"
+            android:background="@drawable/settings_qq_group_card_bg"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageView
+                style="@style/Widget.ADHosts.SettingsRow.Icon"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_sync" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    style="@style/TextAppearance.ADHosts.RowTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/app_update_title" />
+
+                <TextView
+                    android:id="@+id/appUpdateSummary"
+                    style="@style/TextAppearance.ADHosts.RowSubtitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/app_update_summary" />
+            </LinearLayout>
+
+            <ImageView
+                style="@style/Widget.ADHosts.SettingsRow.Chevron"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_chevron_right" />
+        </LinearLayout>
+
         <TextView
             android:id="@+id/versionText"
             style="@style/TextAppearance.ADHosts.VersionText"
@@ -377,7 +417,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="32dp"
             android:gravity="center"
-            tools:text="v2.2.0" />
+            tools:text="v2.2.1" />
 
     </LinearLayout>
 </androidx.core.widget.NestedScrollView>

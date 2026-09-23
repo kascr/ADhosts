@@ -2,6 +2,7 @@ package com.kascr.adhosts
 
 import android.app.Application
 import com.kascr.adhosts.crash.CrashHandler
+import com.kascr.adhosts.data.AppUpdateInstaller
 
 class ADHostsApplication : Application() {
 
@@ -12,6 +13,7 @@ class ADHostsApplication : Application() {
         // allow a rendering failure to recursively open another crash screen.
         if (getProcessName() == packageName) {
             CrashHandler.install(this)
+            AppUpdateInstaller.cleanupStaleDownloads(this)
         }
     }
 }

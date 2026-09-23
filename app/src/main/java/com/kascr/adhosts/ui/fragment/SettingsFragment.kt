@@ -19,6 +19,11 @@ import androidx.lifecycle.lifecycleScope
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.kascr.adhosts.R
 import com.kascr.adhosts.crash.ExpectedExitGuard
+import com.kascr.adhosts.data.AppRelease
+import com.kascr.adhosts.data.AppUpdateException
+import com.kascr.adhosts.data.AppUpdateFailure
+import com.kascr.adhosts.data.AppUpdateInstaller
+import com.kascr.adhosts.data.GithubAppUpdateManager
 import com.kascr.adhosts.data.HostsBackupCodec
 import com.kascr.adhosts.data.HostsSubscriptionManager
 import com.kascr.adhosts.data.HostsOperationLock
@@ -36,6 +41,8 @@ import java.io.OutputStreamWriter
 import java.util.Locale
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -122,6 +129,7 @@ class SettingsFragment : BaseFragment<FragmentSettingsBinding>(R.layout.fragment
         binding.exportButton.setOnClickListener { launchExportPicker() }
         binding.qqGroupButton.setOnClickListener { joinQQGroup() }
         binding.githubRepositoryButton.setOnClickListener { openGithubRepository() }
+        binding.appUpdateButton.setOnClickListener { checkAppUpdate() }
         binding.scheduledUpdateButton.setOnClickListener { showScheduledUpdateDialog() }
         initCrashTestTrigger()
     }
@@ -185,6 +193,154 @@ class SettingsFragment : BaseFragment<FragmentSettingsBinding>(R.layout.fragment
         if (!opened) {
             showToast(R.string.settings_github_unavailable, long = true)
         }
+    }
+
+    private fun checkAppUpdate() {
+        val context = context ?: return
+        val installedVersion = context.packageManager
+            .getPackageInfo(context.packageName, 0).versionName.orEmpty()
+        binding.appUpdateButton.isEnabled = false
+        binding.appUpdateSummary.setText(R.string.app_update_checking)
+        viewLifecycleOwner.lifecycleScope.launch {
+            val result = runCatching {
+                withContext(Dispatchers.IO) { GithubAppUpdateManager.fetchLatestRelease() }
+            }
+            if (bindingOrNull == null) return@launch
+            binding.appUpdateButton.isEnabled = true
+            result.fold(
+                onSuccess = { release -> showAppUpdateResult(release, installedVersion) },
+                onFailure = { error ->
+                    if (error is CancellationException) throw error
+                    binding.appUpdateSummary.setText(R.string.app_update_check_failed)
+                    showToast(getString(R.string.app_update_check_failed), long = true)
+                }
+            )
+        }
+    }
+
+    private fun showAppUpdateResult(release: AppRelease?, installedVersion: String) {
+        if (release == null) {
+            binding.appUpdateSummary.setText(R.string.app_update_no_release)
+            showAppUpdateDialog(R.string.app_update_no_release, null)
+            return
+        }
+        val comparison = GithubAppUpdateManager.compareVersions(release.tag, installedVersion)
+        val status = when {
+            comparison == null -> R.string.app_update_version_unknown
+            comparison > 0 -> R.string.app_update_available
+            comparison < 0 -> R.string.app_update_local_newer
+            else -> R.string.app_update_current
+        }
+        binding.appUpdateSummary.setText(status)
+        val message = buildString {
+            append(getString(R.string.app_update_versions, installedVersion, release.tag))
+            append("\n\n")
+            append(getString(status))
+            if (comparison != null && comparison > 0 && release.notes.isNotBlank()) {
+                append("\n\n")
+                append(release.notes.take(1200))
+            }
+            if (comparison != null && comparison > 0 && release.apkUrl != null) {
+                append("\n\n")
+                append(getString(R.string.app_update_root_install_hint))
+            }
+        }
+        showAppUpdateDialog(status, message, release, comparison != null && comparison > 0)
+    }
+
+    private fun showAppUpdateDialog(
+        title: Int,
+        message: String?,
+        release: AppRelease? = null,
+        updateAvailable: Boolean = false
+    ) {
+        val builder = MaterialAlertDialogBuilder(requireContext())
+            .setTitle(title)
+            .setMessage(message)
+            .setNegativeButton(R.string.cancel, null)
+        if (release != null) {
+            val downloadUrl = if (updateAvailable) release.apkUrl else null
+            builder.setPositiveButton(
+                if (downloadUrl != null) R.string.app_update_download else R.string.app_update_view_release
+            ) { _, _ ->
+                if (downloadUrl != null) installAppUpdate(release)
+                else openAppUpdateUrl(release.pageUrl)
+            }
+            if (downloadUrl != null) {
+                builder.setNeutralButton(R.string.app_update_view_release) { _, _ ->
+                    openAppUpdateUrl(release.pageUrl)
+                }
+            }
+        }
+        GlassDialog.show(builder.create())
+    }
+
+    private fun installAppUpdate(release: AppRelease) {
+        val appContext = requireContext().applicationContext
+        val viewJob = viewLifecycleOwner.lifecycleScope.coroutineContext[Job]
+        val mainHandler = Handler(Looper.getMainLooper())
+        binding.appUpdateButton.isEnabled = false
+        binding.appUpdateSummary.setText(R.string.app_update_downloading)
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    AppUpdateInstaller.requireRoot()
+                    val apk = AppUpdateInstaller.createTemporaryApk(appContext)
+                    try {
+                        GithubAppUpdateManager.downloadApk(release, apk) { percent ->
+                            viewJob?.ensureActive()
+                            mainHandler.post {
+                                bindingOrNull?.appUpdateSummary?.text =
+                                    getString(R.string.app_update_download_progress, percent)
+                            }
+                        }
+                        viewJob?.ensureActive()
+                        mainHandler.post {
+                            bindingOrNull?.appUpdateSummary?.setText(R.string.app_update_verifying)
+                        }
+                        AppUpdateInstaller.verifyApk(appContext, release, apk)
+                        viewJob?.ensureActive()
+                        mainHandler.post {
+                            bindingOrNull?.appUpdateSummary?.setText(R.string.app_update_installing)
+                        }
+                        AppUpdateInstaller.installAsRoot(apk)
+                    } finally {
+                        apk.delete()
+                    }
+                }
+                if (bindingOrNull != null) {
+                    binding.appUpdateSummary.setText(R.string.app_update_installed)
+                    showToast(R.string.app_update_installed, long = true)
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                if (bindingOrNull != null) {
+                    val message = when ((error as? AppUpdateException)?.reason) {
+                        AppUpdateFailure.ROOT_REQUIRED -> R.string.app_update_root_required
+                        AppUpdateFailure.SIGNATURE_MISMATCH -> R.string.app_update_signature_mismatch
+                        AppUpdateFailure.VERSION_NOT_NEWER -> R.string.app_update_not_newer
+                        AppUpdateFailure.WRONG_PACKAGE,
+                        AppUpdateFailure.INVALID_APK,
+                        AppUpdateFailure.RELEASE_MISMATCH -> R.string.app_update_invalid_apk
+                        AppUpdateFailure.INSTALL_FAILED -> R.string.app_update_install_failed
+                        null -> R.string.app_update_download_failed
+                    }
+                    binding.appUpdateSummary.setText(message)
+                    showToast(message, long = true)
+                }
+            } finally {
+                if (bindingOrNull != null) binding.appUpdateButton.isEnabled = true
+            }
+        }
+    }
+
+    private fun openAppUpdateUrl(url: String) {
+        val opened = runCatching {
+            startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+            true
+        }.getOrDefault(false)
+        if (!opened) showToast(R.string.app_update_open_failed, long = true)
     }
 
     private fun initCrashTestTrigger() {
