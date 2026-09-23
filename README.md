@@ -1,25 +1,26 @@
 # ADhosts
 
-基于 Magisk / KernelSU 模块的 Android hosts管理工具。
+ADhosts 是使用 Magisk、KernelSU 或 APatch 模块管理 Android Hosts 的应用，支持订阅源、手动规则、规则合并与 DNS 切换。
 
-## 要求
+## 使用要求
 
-- Android 10+（API 29）
-- Root 权限（Magisk 或 KernelSU）
+- Android 10 或更高版本（API 29+）
+- 可用的 Root 管理器及 Root 授权
 
-## 功能
+## 主要功能
 
-- 订阅多个 hosts 规则源，自动下载合并去重
-- 临时开启 / 关闭hosts拦截
-- 支持更改其他 DNS（谷歌 / 阿里云 / 腾讯）
-- 还有一些小玩具（供我娱乐）
+- 为每个订阅保存独立规则文件，启停时移动文件并重建 Hosts
+- 下载、合并和去重多个 Hosts 订阅，手动规则优先
+- 手动添加和编辑 Hosts 规则
+- 导入、导出订阅与手动规则
+- 开启或关闭 Hosts 拦截，以及选择 DNS
 
-## 使用
+## 构建
 
-1. 安装 APK，首次启动自动安装 Magisk/KSU 模块
-2. 在「Hosts 管理」页面添加订阅源
-3. 重启设备后规则完全生效
-4. 点击「更新」下载合并规则，点击「开启拦截」写入系统 hosts
-5. 左滑链接可删除订阅链接
+使用 JDK 17 和 Android SDK 构建：
 
+```text
+./gradlew assembleDebug
+```
 
+发布版 APK 需要将签名文件放在 `app/adhosts_release.keystore`，并在构建环境中提供 `ADHOSTS_STORE_PASSWORD`、`ADHOSTS_KEY_PASSWORD` 和可选的 `ADHOSTS_KEY_ALIAS`。签名文件和密码不应提交到仓库。

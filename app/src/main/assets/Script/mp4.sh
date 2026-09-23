@@ -1,27 +1,17 @@
 #!/system/bin/sh
 
-# 定义包名数组
-PACKAGE_NAMES=("tv.danmaku.bili" "com.ss.android.ugc.aweme" "com.smile.gifmaker")
+FOREGROUND_PACKAGE=$(dumpsys activity activities 2>/dev/null | sed -n \
+    's/.*mResumedActivity.* \([^/ ]*\)\/.*/\1/p' | head -n 1)
+[ -n "$FOREGROUND_PACKAGE" ] || FOREGROUND_PACKAGE=$(dumpsys window windows 2>/dev/null | sed -n \
+    's/.*mCurrentFocus.* \([^/ ]*\)\/.*/\1/p' | head -n 1)
+[ -n "$FOREGROUND_PACKAGE" ] || exit 1
 
-# 输出开始信息
-echo "开始每隔 10 秒查杀以下包名的进程：${PACKAGE_NAMES[@]}"
-
-# 无限循环，每隔 10 秒查杀一次进程
-while true; do
-    # 遍历包名数组
-    for PACKAGE_NAME in "${PACKAGE_NAMES[@]}"; do
-        # 查找包名对应的进程 ID
-        PID=$(ps | grep "$PACKAGE_NAME" | grep -v "grep" | awk '{print $2}')
-
-        # 如果找到进程，则杀死它
-        if [ -n "$PID" ]; then
-            kill -9 $PID
-            echo "进程 $PACKAGE_NAME (PID: $PID) 已被终止"
-        else
-            echo " "
-        fi
-    done
-    
-    # 每隔 10 秒执行一次
-    sleep 10
+for PACKAGE_NAME in tv.danmaku.bili com.ss.android.ugc.aweme com.smile.gifmaker; do
+    [ "$PACKAGE_NAME" = "$FOREGROUND_PACKAGE" ] && continue
+    if ps -A 2>/dev/null | awk -v package="$PACKAGE_NAME" '
+        $NF == package || index($NF, package ":") == 1 { found=1 }
+        END { exit found ? 0 : 1 }
+    '; then
+        am force-stop "$PACKAGE_NAME" >/dev/null 2>&1
+    fi
 done

@@ -13,17 +13,8 @@ import com.kascr.adhosts.R
 import com.kascr.adhosts.databinding.ActivityDecibelBinding
 import com.kascr.adhosts.ui.base.BaseActivity
 import com.kascr.adhosts.utils.DecibelMeter
+import java.util.Locale
 
-/**
- * 分贝仪 Activity
- * 完全参照参考项目 decibel.tsx 实现：
- * - 圆形仪表盘 + 脉冲缩放动画（1.0→1.08→1.0 循环）
- * - 动态颜色仪表盘边框和数值
- * - 当前/峰值双卡片
- * - 五段彩色噪音等级条（opacity 切换）
- * - 状态徽章（动态颜色+文字）
- * - 开始/停止按钮（success/error 色切换）
- */
 class Decibel : BaseActivity<ActivityDecibelBinding>() {
 
     private lateinit var decibelMeter: DecibelMeter
@@ -31,24 +22,14 @@ class Decibel : BaseActivity<ActivityDecibelBinding>() {
     private var maxDecibel = 0.0
     private var pulseAnimator: ValueAnimator? = null
 
-    // 参考项目的颜色常量
-    companion object {
-        // 噪音等级颜色（与参考项目 levelColors 完全一致）
-        private val LEVEL_COLORS = intArrayOf(
-            Color.parseColor("#00897B"),  // 非常安静
-            Color.parseColor("#43A047"),  // 安静
-            Color.parseColor("#FB8C00"),  // 正常
-            Color.parseColor("#E53935"),  // 嘈杂
-            Color.parseColor("#B71C1C")   // 危险噪音
+    private val levelSegments by lazy {
+        listOf(
+            binding.levelSeg0,
+            binding.levelSeg1,
+            binding.levelSeg2,
+            binding.levelSeg3,
+            binding.levelSeg4
         )
-        // 噪音等级阈值（与参考项目 levelThresholds 一致）
-        private val LEVEL_THRESHOLDS = doubleArrayOf(0.0, 30.0, 50.0, 70.0, 85.0)
-
-        // 参考项目主题色
-        private val COLOR_SUCCESS = Color.parseColor("#26A69A")  // colors.success (dark)
-        private val COLOR_ERROR = Color.parseColor("#F87171")    // colors.error (dark)
-        private val COLOR_MUTED = Color.parseColor("#8B949E")    // colors.muted (dark)
-        private val COLOR_BORDER = Color.parseColor("#30363D")   // colors.border (dark)
     }
 
     override fun getViewBinding(): ActivityDecibelBinding {
@@ -56,255 +37,13 @@ class Decibel : BaseActivity<ActivityDecibelBinding>() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        applyStoredBackgroundTheme()
         super.onCreate(savedInstanceState)
 
-        // 沉浸式状态栏
-        WindowCompat.setDecorFitsSystemWindows(window, false)
-
-        // 动态获取状态栏高度，给根布局设置顶部 padding
-        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { view, insets ->
-            val statusBarHeight = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top
-            view.setPadding(0, statusBarHeight, 0, 0)
-            insets
-        }
-
-        // 返回按钮（参考项目 backBtn → router.back()）
-        binding.backButton.setOnClickListener { finish() }
-
-        // 初始化 DecibelMeter，传入回调更新 UI
-        decibelMeter = DecibelMeter(this, object : DecibelMeter.DecibelCallback {
-            override fun onDecibelUpdate(db: Double) {
-                runOnUiThread { updateUI(db) }
-            }
-        })
-
-        // 控制按钮点击事件
-        binding.controlButton.setOnClickListener {
-            if (isRunning) {
-                stopMeasuring()
-            } else {
-                startMeasuring()
-            }
-        }
-
-        // 初始化 UI 状态
+        configureWindow()
+        initControls()
+        initDecibelMeter()
         resetUI()
-    }
-
-    /**
-     * 开始测量（参考项目 startMeasuring）
-     */
-    private fun startMeasuring() {
-        isRunning = true
-        maxDecibel = 0.0
-
-        // 更新按钮状态：停止测量（error 色，参考项目 colors.error）
-        binding.controlButton.apply {
-            text = "停止测量"
-            setIconResource(R.drawable.ic_stop)
-            setBackgroundColor(COLOR_ERROR)
-        }
-
-        // 启动脉冲动画（参考项目 pulseAnim: 1.0→1.08→1.0, 600ms+600ms 循环）
-        startPulseAnimation()
-
-        // 启动分贝仪
-        decibelMeter.start()
-    }
-
-    /**
-     * 停止测量（参考项目 stopMeasuring）
-     */
-    private fun stopMeasuring() {
-        isRunning = false
-        decibelMeter.stop()
-
-        // 停止脉冲动画，恢复缩放（参考项目 pulseAnim.setValue(1)）
-        pulseAnimator?.cancel()
-        binding.gaugeOuter.scaleX = 1f
-        binding.gaugeOuter.scaleY = 1f
-
-        // 恢复按钮状态：开始测量（success 色，参考项目 colors.success）
-        binding.controlButton.apply {
-            text = "开始测量"
-            setIconResource(R.drawable.ic_waveform)
-            setBackgroundColor(COLOR_SUCCESS)
-        }
-
-        // 重置仪表盘颜色（参考项目：isRunning=false 时 gaugeColor→colors.muted）
-        binding.dbValueText.setTextColor(COLOR_MUTED)
-
-        // 重置外圆边框颜色（参考项目：isRunning=false 时 borderColor→colors.border）
-        setGaugeOuterBorderColor(COLOR_BORDER)
-
-        // 重置徽章（参考项目：isRunning=false 时 "未测量", backgroundColor→colors.muted）
-        binding.categoryBadge.apply {
-            text = "未测量"
-            background = createRoundedBadge(COLOR_MUTED)
-        }
-
-        // 重置等级条
-        updateLevelSegments(0.0)
-    }
-
-    /**
-     * 根据分贝值更新所有 UI 元素（参考项目 intervalRef callback 逻辑）
-     */
-    private fun updateUI(db: Double) {
-        // 更新峰值（参考项目 setMaxDecibel(prev => Math.max(prev, db))）
-        if (db > maxDecibel) maxDecibel = db
-
-        // 更新大数字显示（参考项目 decibelValue: db.toFixed(1)）
-        binding.dbValueText.text = String.format("%.1f", db)
-        binding.currentDbText.text = String.format("%.1f", db)
-        binding.maxDbText.text = String.format("%.1f", maxDecibel)
-
-        // 获取当前分贝等级颜色（参考项目 gaugeColor interpolation）
-        val gaugeColor = getGaugeColor(db)
-
-        // 更新仪表盘数值颜色（参考项目：isRunning 时 color→gaugeColor）
-        binding.dbValueText.setTextColor(gaugeColor)
-
-        // 更新外圆边框颜色（参考项目：isRunning 时 borderColor→gaugeColor）
-        setGaugeOuterBorderColor(gaugeColor)
-
-        // 更新徽章（参考项目 categoryBadge）
-        val category = getDecibelCategory(db)
-        binding.categoryBadge.apply {
-            text = category.first
-            background = createRoundedBadge(Color.parseColor(category.second))
-        }
-
-        // 更新噪音等级条
-        updateLevelSegments(db)
-    }
-
-    /**
-     * 获取仪表盘颜色（参考项目 gaugeColor interpolation）
-     * inputRange: [0, 0.3, 0.5, 0.7, 0.85, 1]
-     * outputRange: ["#00897B", "#43A047", "#FB8C00", "#E53935", "#C62828", "#B71C1C"]
-     */
-    private fun getGaugeColor(db: Double): Int {
-        val ratio = (db / 100.0).coerceIn(0.0, 1.0).toFloat()
-        val stops = floatArrayOf(0f, 0.3f, 0.5f, 0.7f, 0.85f, 1f)
-        val colors = intArrayOf(
-            Color.parseColor("#00897B"),
-            Color.parseColor("#43A047"),
-            Color.parseColor("#FB8C00"),
-            Color.parseColor("#E53935"),
-            Color.parseColor("#C62828"),
-            Color.parseColor("#B71C1C")
-        )
-
-        // 找到当前 ratio 所在的区间并插值
-        for (i in 0 until stops.size - 1) {
-            if (ratio <= stops[i + 1]) {
-                val localRatio = (ratio - stops[i]) / (stops[i + 1] - stops[i])
-                return ArgbEvaluator().evaluate(localRatio, colors[i], colors[i + 1]) as Int
-            }
-        }
-        return colors.last()
-    }
-
-    /**
-     * 动态设置外圆边框颜色（参考项目 gaugeOuter borderColor 动态变化）
-     */
-    private fun setGaugeOuterBorderColor(color: Int) {
-        val bg = binding.gaugeOuter.background
-        if (bg is GradientDrawable) {
-            bg.setStroke(3.dpToPx(), color)
-        } else {
-            // 重新创建
-            binding.gaugeOuter.background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(Color.parseColor("#161B22"))
-                setStroke(3.dpToPx(), color)
-            }
-        }
-    }
-
-    /**
-     * 更新五段噪音等级进度条的高亮状态
-     * 参考项目逻辑：opacity = decibel >= threshold ? 1 : 0.3
-     */
-    private fun updateLevelSegments(db: Double) {
-        val segments = listOf(
-            binding.levelSeg0,
-            binding.levelSeg1,
-            binding.levelSeg2,
-            binding.levelSeg3,
-            binding.levelSeg4
-        )
-
-        segments.forEachIndexed { index, view ->
-            val isActive = db >= LEVEL_THRESHOLDS[index]
-            view.alpha = if (isActive) 1.0f else 0.3f
-        }
-    }
-
-    /**
-     * 根据分贝值返回等级标签和颜色（参考项目 getDecibelCategory 完全一致）
-     */
-    private fun getDecibelCategory(db: Double): Pair<String, String> {
-        return when {
-            db < 30 -> Pair("非常安静", "#00897B")
-            db < 50 -> Pair("安静", "#43A047")
-            db < 70 -> Pair("正常", "#FB8C00")
-            db < 85 -> Pair("嘈杂", "#E53935")
-            else    -> Pair("危险噪音", "#B71C1C")
-        }
-    }
-
-    /**
-     * 创建带圆角的彩色徽章背景（参考项目 categoryBadge: borderRadius=20）
-     */
-    private fun createRoundedBadge(color: Int): GradientDrawable {
-        return GradientDrawable().apply {
-            shape = GradientDrawable.RECTANGLE
-            setColor(color)
-            cornerRadius = 20.dpToPx().toFloat()
-        }
-    }
-
-    /**
-     * 启动外圆脉冲动画
-     * 参考项目：Animated.loop(sequence([
-     *   timing(pulseAnim, toValue:1.08, duration:600, easing:inOut(ease)),
-     *   timing(pulseAnim, toValue:1, duration:600, easing:inOut(ease))
-     * ]))
-     */
-    private fun startPulseAnimation() {
-        pulseAnimator = ValueAnimator.ofFloat(1.0f, 1.08f, 1.0f).apply {
-            duration = 1200  // 600ms up + 600ms down
-            repeatCount = ValueAnimator.INFINITE
-            repeatMode = ValueAnimator.RESTART
-            interpolator = AccelerateDecelerateInterpolator()
-            addUpdateListener { animator ->
-                val scale = animator.animatedValue as Float
-                binding.gaugeOuter.scaleX = scale
-                binding.gaugeOuter.scaleY = scale
-                // 同时缩放内圆，保持视觉一致
-                binding.gaugeInner.scaleX = scale
-                binding.gaugeInner.scaleY = scale
-            }
-            start()
-        }
-    }
-
-    /**
-     * 重置 UI 到初始状态
-     */
-    private fun resetUI() {
-        binding.dbValueText.setTextColor(COLOR_MUTED)
-        binding.categoryBadge.background = createRoundedBadge(COLOR_MUTED)
-        updateLevelSegments(0.0)
-    }
-
-    /**
-     * dp 转 px 扩展函数
-     */
-    private fun Int.dpToPx(): Int {
-        return (this * resources.displayMetrics.density).toInt()
     }
 
     override fun onRequestPermissionsResult(
@@ -317,8 +56,218 @@ class Decibel : BaseActivity<ActivityDecibelBinding>() {
     }
 
     override fun onDestroy() {
-        super.onDestroy()
         pulseAnimator?.cancel()
+        decibelMeter.stop(notifyStopped = false)
+        super.onDestroy()
+    }
+
+    private fun configureWindow() {
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        bindStoredBackground(binding.functionBackgroundImage, binding.functionBackgroundScrim)
+        ViewCompat.setOnApplyWindowInsetsListener(binding.functionContentRoot) { view, insets ->
+            val statusBarHeight = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top
+            view.setPadding(0, statusBarHeight, 0, 0)
+            insets
+        }
+    }
+
+    private fun initControls() {
+        binding.backButton.setOnClickListener { finish() }
+        binding.controlButton.setOnClickListener {
+            if (isRunning) {
+                stopMeasuring()
+            } else {
+                startMeasuring()
+            }
+        }
+    }
+
+    private fun initDecibelMeter() {
+        decibelMeter = DecibelMeter(this, object : DecibelMeter.DecibelCallback {
+            override fun onMeasurementStarted() {
+                runOnUiThread { showMeasuringState() }
+            }
+
+            override fun onMeasurementStopped() {
+                runOnUiThread { showStoppedState() }
+            }
+
+            override fun onDecibelUpdate(db: Double) {
+                runOnUiThread { updateUI(db) }
+            }
+        })
+    }
+
+    private fun startMeasuring() {
+        maxDecibel = 0.0
+        decibelMeter.start()
+    }
+
+    private fun stopMeasuring() {
         decibelMeter.stop()
+    }
+
+    private fun showMeasuringState() {
+        isRunning = true
+        maxDecibel = 0.0
+
+        binding.controlButton.apply {
+            text = getString(R.string.decibel_stop)
+            setIconResource(R.drawable.ic_stop)
+            setBackgroundColor(COLOR_ERROR)
+        }
+
+        startPulseAnimation()
+    }
+
+    private fun showStoppedState() {
+        isRunning = false
+        pulseAnimator?.cancel()
+        pulseAnimator = null
+
+        binding.gaugeOuter.scaleX = 1f
+        binding.gaugeOuter.scaleY = 1f
+        binding.gaugeInner.scaleX = 1f
+        binding.gaugeInner.scaleY = 1f
+
+        binding.controlButton.apply {
+            text = getString(R.string.decibel_start)
+            setIconResource(R.drawable.ic_waveform)
+            setBackgroundColor(COLOR_SUCCESS)
+        }
+
+        binding.dbValueText.setTextColor(COLOR_MUTED)
+        setGaugeOuterBorderColor(COLOR_BORDER)
+        binding.categoryBadge.apply {
+            text = getString(R.string.decibel_not_measured)
+            background = createRoundedBadge(COLOR_MUTED)
+        }
+        updateLevelSegments(0.0)
+    }
+
+    private fun updateUI(db: Double) {
+        if (db > maxDecibel) {
+            maxDecibel = db
+        }
+
+        binding.dbValueText.text = String.format(Locale.US, "%.1f", db)
+        binding.currentDbText.text = String.format(Locale.US, "%.1f", db)
+        binding.maxDbText.text = String.format(Locale.US, "%.1f", maxDecibel)
+
+        val gaugeColor = getGaugeColor(db)
+        binding.dbValueText.setTextColor(gaugeColor)
+        setGaugeOuterBorderColor(gaugeColor)
+
+        val category = getDecibelCategory(db)
+        binding.categoryBadge.apply {
+            text = getString(category.labelRes)
+            background = createRoundedBadge(category.color)
+        }
+
+        updateLevelSegments(db)
+    }
+
+    private fun getGaugeColor(db: Double): Int {
+        val ratio = (db / 100.0).coerceIn(0.0, 1.0).toFloat()
+
+        for (index in 0 until GAUGE_COLOR_STOPS.lastIndex) {
+            if (ratio <= GAUGE_COLOR_STOPS[index + 1]) {
+                val localRatio =
+                    (ratio - GAUGE_COLOR_STOPS[index]) /
+                        (GAUGE_COLOR_STOPS[index + 1] - GAUGE_COLOR_STOPS[index])
+                return ArgbEvaluator().evaluate(localRatio, GAUGE_COLORS[index], GAUGE_COLORS[index + 1]) as Int
+            }
+        }
+
+        return GAUGE_COLORS.last()
+    }
+
+    private fun setGaugeOuterBorderColor(color: Int) {
+        val background = binding.gaugeOuter.background
+        if (background is GradientDrawable) {
+            background.setStroke(3.dpToPx(), color)
+        } else {
+            binding.gaugeOuter.background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(Color.parseColor("#161B22"))
+                setStroke(3.dpToPx(), color)
+            }
+        }
+    }
+
+    private fun updateLevelSegments(db: Double) {
+        levelSegments.forEachIndexed { index, view ->
+            view.alpha = if (db >= LEVEL_THRESHOLDS[index]) 1f else 0.3f
+        }
+    }
+
+    private fun getDecibelCategory(db: Double): DecibelCategory {
+        return when {
+            db < 30 -> DecibelCategory(R.string.decibel_very_quiet, Color.parseColor("#00897B"))
+            db < 50 -> DecibelCategory(R.string.decibel_quiet, Color.parseColor("#43A047"))
+            db < 70 -> DecibelCategory(R.string.decibel_normal, Color.parseColor("#FB8C00"))
+            db < 85 -> DecibelCategory(R.string.decibel_noisy, Color.parseColor("#E53935"))
+            else -> DecibelCategory(R.string.decibel_danger_noise, Color.parseColor("#B71C1C"))
+        }
+    }
+
+    private fun createRoundedBadge(color: Int): GradientDrawable {
+        return GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            setColor(color)
+            cornerRadius = 20.dpToPx().toFloat()
+        }
+    }
+
+    private fun startPulseAnimation() {
+        pulseAnimator = ValueAnimator.ofFloat(1.0f, 1.08f, 1.0f).apply {
+            duration = 1200L
+            repeatCount = ValueAnimator.INFINITE
+            repeatMode = ValueAnimator.RESTART
+            interpolator = AccelerateDecelerateInterpolator()
+            addUpdateListener { animator ->
+                val scale = animator.animatedValue as Float
+                binding.gaugeOuter.scaleX = scale
+                binding.gaugeOuter.scaleY = scale
+                binding.gaugeInner.scaleX = scale
+                binding.gaugeInner.scaleY = scale
+            }
+            start()
+        }
+    }
+
+    private fun resetUI() {
+        binding.dbValueText.setTextColor(COLOR_MUTED)
+        binding.categoryBadge.text = getString(R.string.decibel_not_measured)
+        binding.categoryBadge.background = createRoundedBadge(COLOR_MUTED)
+        setGaugeOuterBorderColor(COLOR_BORDER)
+        updateLevelSegments(0.0)
+    }
+
+    private fun Int.dpToPx(): Int {
+        return (this * resources.displayMetrics.density).toInt()
+    }
+
+    private data class DecibelCategory(
+        val labelRes: Int,
+        val color: Int
+    )
+
+    companion object {
+        private val LEVEL_THRESHOLDS = doubleArrayOf(0.0, 30.0, 50.0, 70.0, 85.0)
+        private val GAUGE_COLOR_STOPS = floatArrayOf(0f, 0.3f, 0.5f, 0.7f, 0.85f, 1f)
+        private val GAUGE_COLORS = intArrayOf(
+            Color.parseColor("#00897B"),
+            Color.parseColor("#43A047"),
+            Color.parseColor("#FB8C00"),
+            Color.parseColor("#E53935"),
+            Color.parseColor("#C62828"),
+            Color.parseColor("#B71C1C")
+        )
+
+        private val COLOR_SUCCESS = Color.parseColor("#26A69A")
+        private val COLOR_ERROR = Color.parseColor("#F87171")
+        private val COLOR_MUTED = Color.parseColor("#8B949E")
+        private val COLOR_BORDER = Color.parseColor("#30363D")
     }
 }

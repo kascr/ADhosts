@@ -1,11 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.coordinatorlayout.widget.CoordinatorLayout
+<FrameLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+
+    <ImageView
+        android:id="@+id/functionBackgroundImage"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:contentDescription="@null"
+        android:scaleType="centerCrop"
+        android:visibility="invisible" />
+
+    <View
+        android:id="@+id/functionBackgroundScrim"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="invisible" />
+
+<androidx.coordinatorlayout.widget.CoordinatorLayout
+    android:id="@+id/functionContentRoot"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="?attr/colorSurface"
->
+    android:background="@android:color/transparent">
 
     <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
@@ -19,40 +38,29 @@
 
             <!-- ===== 顶部 Header（参考项目 header 样式：返回按钮圆形 + 标题） ===== -->
             <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:paddingHorizontal="16dp"
-                android:paddingTop="0dp"
-                android:paddingBottom="16dp">
+                style="@style/Widget.ADHosts.FunctionHeader"
+                android:paddingTop="0dp">
 
                 <!-- 圆形返回按钮（参考项目 backBtn: 36x36 圆形, surface 背景, border 边框） -->
                 <FrameLayout
                     android:id="@+id/backButton"
-                    android:layout_width="36dp"
-                    android:layout_height="36dp"
-                    android:background="@drawable/circle_back_btn_bg"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:foreground="?attr/selectableItemBackgroundBorderless">
+                    style="@style/Widget.ADHosts.FunctionBackButton">
 
                     <ImageView
                         android:layout_width="18dp"
                         android:layout_height="18dp"
                         android:layout_gravity="center"
+                        android:contentDescription="@null"
                         android:src="@drawable/ic_arrow_back"
                         app:tint="?attr/colorOnSurface" />
                 </FrameLayout>
 
                 <TextView
+                    style="@style/TextAppearance.ADHosts.FunctionTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="12dp"
-                    android:text="@string/tool_decibel"
-                    android:textColor="?attr/colorOnSurface"
-                    android:textSize="20sp"
-                    android:textStyle="bold" />
+                    android:text="@string/tool_decibel" />
             </LinearLayout>
 
             <!-- ===== 圆形仪表盘区域（参考项目 gaugeContainer） ===== -->
@@ -85,18 +93,18 @@
                         android:id="@+id/dbValueText"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="0.0"
+                        tools:text="0.0"
                         android:textColor="?attr/colorOnSurfaceVariant"
                         android:textSize="56sp"
                         android:textStyle="bold"
                         android:fontFamily="sans-serif-medium"
-                        android:letterSpacing="-0.05" />
+                    android:letterSpacing="0" />
 
                     <!-- 单位（参考项目 decibelUnit: 18sp, muted color, marginTop -4） -->
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="dB"
+                        android:text="@string/decibel_unit"
                         android:textColor="?attr/colorOnSurfaceVariant"
                         android:textSize="18sp"
                         android:fontFamily="sans-serif-medium"
@@ -142,7 +150,8 @@
                     android:layout_marginEnd="6dp"
                     app:cardCornerRadius="14dp"
                     app:strokeWidth="1dp"
-                    app:strokeColor="?attr/colorOutlineVariant">
+                    app:cardBackgroundColor="?attr/appCardBackgroundColor"
+                    app:strokeColor="?attr/appCardStrokeColor">
 
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -165,7 +174,7 @@
                             android:id="@+id/currentDbText"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="0.0"
+                            tools:text="0.0"
                             android:textColor="?attr/colorOnSurface"
                             android:textSize="24sp"
                             android:textStyle="bold" />
@@ -174,7 +183,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="dB"
+                            android:text="@string/decibel_unit"
                             android:textColor="?attr/colorOnSurfaceVariant"
                             android:textSize="12sp" />
                     </LinearLayout>
@@ -189,7 +198,8 @@
                     android:layout_marginStart="6dp"
                     app:cardCornerRadius="14dp"
                     app:strokeWidth="1dp"
-                    app:strokeColor="?attr/colorOutlineVariant">
+                    app:cardBackgroundColor="?attr/appCardBackgroundColor"
+                    app:strokeColor="?attr/appCardStrokeColor">
 
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -211,7 +221,7 @@
                             android:id="@+id/maxDbText"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="0.0"
+                            tools:text="0.0"
                             android:textColor="#F87171"
                             android:textSize="24sp"
                             android:textStyle="bold" />
@@ -219,7 +229,7 @@
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="dB"
+                            android:text="@string/decibel_unit"
                             android:textColor="?attr/colorOnSurfaceVariant"
                             android:textSize="12sp" />
                     </LinearLayout>
@@ -235,7 +245,8 @@
                 android:layout_marginBottom="24dp"
                 app:cardCornerRadius="14dp"
                 app:strokeWidth="1dp"
-                app:strokeColor="?attr/colorOutlineVariant">
+                app:cardBackgroundColor="?attr/appCardBackgroundColor"
+                app:strokeColor="?attr/appCardStrokeColor">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -358,21 +369,15 @@
             <!-- ===== 开始/停止按钮（参考项目 controlBtn: 16dp radius, 18dp paddingVertical, row layout） ===== -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/controlButton"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                style="@style/Widget.ADHosts.PillButton.Neutral.FullWidth"
                 android:layout_marginHorizontal="16dp"
-                android:paddingVertical="16dp"
                 android:text="@string/decibel_start"
-                android:textSize="17sp"
-                android:textStyle="bold"
-                android:backgroundTint="#26A69A"
-                app:cornerRadius="16dp"
                 app:icon="@drawable/ic_waveform"
-                app:iconGravity="textStart"
-                app:iconPadding="10dp"
-                app:iconTint="@android:color/white" />
+                />
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
+
+</FrameLayout>

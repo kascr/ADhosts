@@ -1,17 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:clipToPadding="false"
-    android:background="#0D1117">
+    android:background="@android:color/transparent"
+    android:clipToPadding="false">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:paddingBottom="100dp">
+        android:paddingBottom="140dp">
 
-        <!-- ══════════════ 分组：语言 ══════════════ -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -19,63 +20,104 @@
             android:paddingTop="24dp"
             android:paddingBottom="10dp"
             android:text="@string/settings_section_general"
-            android:textColor="#4FC3F7"
-            android:textSize="14sp"
-            android:textStyle="bold" />
+            style="@style/TextAppearance.ADHosts.SettingsSectionHeader" />
 
-        <!-- 切换语言卡片 -->
         <LinearLayout
             android:id="@+id/languageButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginHorizontal="16dp"
-            android:background="@drawable/card_single_bg"
+            style="@style/Widget.ADHosts.SettingsRow"
+            android:background="@drawable/settings_language_card_bg"
             android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:paddingHorizontal="16dp"
-            android:paddingVertical="18dp"
-            android:clickable="true"
-            android:focusable="true"
-            android:foreground="?attr/selectableItemBackground">
+            >
 
             <ImageView
-                android:layout_width="24dp"
-                android:layout_height="24dp"
+                style="@style/Widget.ADHosts.SettingsRow.Icon"
+                android:contentDescription="@null"
                 android:src="@drawable/ic_language"
-                android:tint="#9E9E9E" />
+                />
 
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
                 android:layout_marginStart="16dp"
+                android:layout_weight="1"
                 android:orientation="vertical">
 
                 <TextView
+                    style="@style/TextAppearance.ADHosts.RowTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/settings_language"
-                    android:textColor="#E6EDF3"
-                    android:textSize="16sp" />
+                    android:text="@string/settings_language" />
 
                 <TextView
                     android:id="@+id/currentLanguageText"
+                    style="@style/TextAppearance.ADHosts.RowSubtitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="2dp"
                     android:text="@string/settings_language_current_zh"
-                    android:textColor="#8B949E"
-                    android:textSize="13sp" />
+                    />
             </LinearLayout>
 
             <ImageView
-                android:layout_width="18dp"
-                android:layout_height="18dp"
+                style="@style/Widget.ADHosts.SettingsRow.Chevron"
+                android:contentDescription="@null"
                 android:src="@drawable/ic_chevron_right"
-                android:tint="#8B949E" />
+                />
         </LinearLayout>
 
-        <!-- ══════════════ 分组：数据管理 ══════════════ -->
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/backgroundImageButton"
+            style="@style/Widget.ADHosts.SettingsRow"
+            android:background="@drawable/settings_wallpaper_card_bg"
+            android:layout_marginTop="@dimen/app_card_spacing"
+            android:layout_marginBottom="@dimen/app_card_spacing"
+            >
+
+            <ImageView
+                android:id="@+id/backgroundImageIcon"
+                style="@style/Widget.ADHosts.SettingsRow.Icon"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_image"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="16dp"
+                android:orientation="vertical"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/backgroundImageChevron"
+                app:layout_constraintStart_toEndOf="@id/backgroundImageIcon"
+                app:layout_constraintTop_toTopOf="parent">
+
+                <TextView
+                    style="@style/TextAppearance.ADHosts.RowTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/settings_wallpaper" />
+
+                <TextView
+                    android:id="@+id/currentBackgroundText"
+                    style="@style/TextAppearance.ADHosts.RowSubtitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/settings_background_night_sky"
+                    />
+            </LinearLayout>
+
+            <ImageView
+                android:id="@+id/backgroundImageChevron"
+                style="@style/Widget.ADHosts.SettingsRow.Chevron"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_chevron_right"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -83,129 +125,169 @@
             android:paddingTop="28dp"
             android:paddingBottom="10dp"
             android:text="@string/settings_section_subscription"
-            android:textColor="#4FC3F7"
-            android:textSize="14sp"
-            android:textStyle="bold" />
+            style="@style/TextAppearance.ADHosts.SettingsSectionHeader" />
 
-        <!-- 导出订阅配置（上半卡片） -->
-        <LinearLayout
+        <androidx.constraintlayout.widget.ConstraintLayout
             android:id="@+id/exportButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginHorizontal="16dp"
-            android:background="@drawable/card_top_bg"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:paddingHorizontal="16dp"
-            android:paddingVertical="18dp"
-            android:clickable="true"
-            android:focusable="true"
-            android:foreground="?attr/selectableItemBackground">
+            style="@style/Widget.ADHosts.SettingsRow"
+            android:background="@drawable/settings_export_card_bg"
+            android:layout_marginBottom="@dimen/app_card_spacing"
+            >
 
             <ImageView
-                android:layout_width="24dp"
-                android:layout_height="24dp"
+                android:id="@+id/exportIcon"
+                style="@style/Widget.ADHosts.SettingsRow.Icon"
+                android:contentDescription="@null"
                 android:src="@drawable/ic_export"
-                android:tint="#9E9E9E" />
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
 
             <LinearLayout
+                android:id="@+id/exportTextGroup"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
                 android:layout_marginStart="16dp"
-                android:orientation="vertical">
+                android:layout_marginEnd="16dp"
+                android:orientation="vertical"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/exportChevron"
+                app:layout_constraintStart_toEndOf="@id/exportIcon"
+                app:layout_constraintTop_toTopOf="parent">
 
                 <TextView
+                    style="@style/TextAppearance.ADHosts.RowTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/settings_export"
-                    android:textColor="#E6EDF3"
-                    android:textSize="16sp" />
+                    android:text="@string/settings_export" />
 
                 <TextView
+                    style="@style/TextAppearance.ADHosts.RowSubtitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="2dp"
                     android:text="@string/settings_export_desc"
-                    android:textColor="#8B949E"
-                    android:textSize="13sp" />
+                    />
             </LinearLayout>
 
             <ImageView
-                android:layout_width="18dp"
-                android:layout_height="18dp"
+                android:id="@+id/exportChevron"
+                style="@style/Widget.ADHosts.SettingsRow.Chevron"
+                android:contentDescription="@null"
                 android:src="@drawable/ic_chevron_right"
-                android:tint="#8B949E" />
-        </LinearLayout>
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
 
-        <!-- 分隔线 -->
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:layout_marginHorizontal="16dp"
-            android:background="@drawable/divider_line" />
-
-        <!-- 导入订阅配置（下半卡片） -->
-        <LinearLayout
+        <androidx.constraintlayout.widget.ConstraintLayout
             android:id="@+id/importButton"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginHorizontal="16dp"
-            android:background="@drawable/card_bottom_bg"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:paddingHorizontal="16dp"
-            android:paddingVertical="18dp"
-            android:clickable="true"
-            android:focusable="true"
-            android:foreground="?attr/selectableItemBackground">
+            style="@style/Widget.ADHosts.SettingsRow"
+            android:background="@drawable/settings_import_card_bg">
 
             <ImageView
-                android:layout_width="24dp"
-                android:layout_height="24dp"
+                android:id="@+id/importIcon"
+                style="@style/Widget.ADHosts.SettingsRow.Icon"
+                android:contentDescription="@null"
                 android:src="@drawable/ic_import"
-                android:tint="#9E9E9E" />
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+
+            <LinearLayout
+                android:id="@+id/importTextGroup"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="16dp"
+                android:orientation="vertical"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/importChevron"
+                app:layout_constraintStart_toEndOf="@id/importIcon"
+                app:layout_constraintTop_toTopOf="parent">
+
+                <TextView
+                    style="@style/TextAppearance.ADHosts.RowTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/settings_import" />
+
+                <TextView
+                    style="@style/TextAppearance.ADHosts.RowSubtitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/settings_import_desc"
+                    />
+            </LinearLayout>
+
+            <ImageView
+                android:id="@+id/importChevron"
+                style="@style/Widget.ADHosts.SettingsRow.Chevron"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_chevron_right"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
+
+        <TextView
+            style="@style/TextAppearance.ADHosts.SettingsSectionHeader"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:paddingHorizontal="20dp"
+            android:paddingTop="28dp"
+            android:paddingBottom="10dp"
+            android:text="@string/settings_section_community" />
+
+        <androidx.constraintlayout.widget.ConstraintLayout
+            android:id="@+id/qqGroupButton"
+            style="@style/Widget.ADHosts.SettingsRow"
+            android:background="@drawable/settings_qq_group_card_bg">
+
+            <ImageView
+                android:id="@+id/qqGroupIcon"
+                style="@style/Widget.ADHosts.SettingsRow.Icon"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_community"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintStart_toStartOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
 
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
                 android:layout_marginStart="16dp"
-                android:orientation="vertical">
+                android:layout_marginEnd="16dp"
+                android:orientation="vertical"
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toStartOf="@id/qqGroupChevron"
+                app:layout_constraintStart_toEndOf="@id/qqGroupIcon"
+                app:layout_constraintTop_toTopOf="parent">
 
                 <TextView
+                    style="@style/TextAppearance.ADHosts.RowTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="@string/settings_import"
-                    android:textColor="#E6EDF3"
-                    android:textSize="16sp" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="2dp"
-                    android:text="@string/settings_import_desc"
-                    android:textColor="#8B949E"
-                    android:textSize="13sp" />
+                    android:text="@string/settings_qq_group" />
             </LinearLayout>
 
             <ImageView
-                android:layout_width="18dp"
-                android:layout_height="18dp"
+                android:id="@+id/qqGroupChevron"
+                style="@style/Widget.ADHosts.SettingsRow.Chevron"
+                android:contentDescription="@null"
                 android:src="@drawable/ic_chevron_right"
-                android:tint="#8B949E" />
-        </LinearLayout>
+                app:layout_constraintBottom_toBottomOf="parent"
+                app:layout_constraintEnd_toEndOf="parent"
+                app:layout_constraintTop_toTopOf="parent" />
+        </androidx.constraintlayout.widget.ConstraintLayout>
 
-        <!-- 版本号 -->
         <TextView
             android:id="@+id/versionText"
+            style="@style/TextAppearance.ADHosts.VersionText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="40dp"
+            android:layout_marginTop="32dp"
             android:gravity="center"
-            android:text="v1.1.5"
-            android:textColor="#4A5568"
-            android:textSize="13sp" />
+            tools:text="v2.2.0" />
 
     </LinearLayout>
 </androidx.core.widget.NestedScrollView>

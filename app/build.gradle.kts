@@ -3,26 +3,35 @@ plugins {
     alias(libs.plugins.kotlin.android)
 }
 
+val releaseStoreFile = file("adhosts_release.keystore")
+val releaseStorePassword = providers.environmentVariable("ADHOSTS_STORE_PASSWORD").orNull
+val releaseKeyAlias = providers.environmentVariable("ADHOSTS_KEY_ALIAS").orElse("adhosts").get()
+val releaseKeyPassword = providers.environmentVariable("ADHOSTS_KEY_PASSWORD").orNull ?: releaseStorePassword
+val hasReleaseSigning = releaseStoreFile.exists() &&
+    !releaseStorePassword.isNullOrBlank() &&
+    !releaseKeyPassword.isNullOrBlank()
+
 android {
     namespace = "com.kascr.adhosts"
-    compileSdk = 36
+    compileSdk = 35
 
     signingConfigs {
-        create("release") {
-            storeFile = file("adhosts_release.keystore")
-            // 从环境变量读取，避免明文写入仓库
-            storePassword = "adhosts123"
-            keyAlias = "adhosts"
-            keyPassword = "adhosts123"
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = releaseStoreFile
+                storePassword = releaseStorePassword!!
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword!!
+            }
         }
     }
 
     defaultConfig {
         applicationId = "com.kascr.adhosts"
         minSdk = 29
-        targetSdk = 36
-        versionCode = 118
-        versionName = "1.1.8"
+        targetSdk = 35
+        versionCode = 220
+        versionName = "2.2.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -34,42 +43,46 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = signingConfigs.getByName("release")
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     kotlinOptions {
-        jvmTarget = "1.8"
+        jvmTarget = "17"
     }
 
     buildFeatures {
         viewBinding = true
     }
+
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
+    }
 }
 
 dependencies {
-    val libsuVersion = "6.0.0"
     implementation(libs.androidx.activity)
-    implementation(libs.androidx.benchmark)
-    implementation ("com.google.code.gson:gson:2.9.0")//json
-    implementation ("androidx.recyclerview:recyclerview:1.2.1")
-    implementation("com.github.topjohnwu.libsu:core:$libsuVersion")
-    implementation("com.github.topjohnwu.libsu:service:$libsuVersion")
-    implementation("com.github.topjohnwu.libsu:nio:$libsuVersion")//root
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.0")
-    implementation("androidx.viewpager2:viewpager2:1.1.0")
-    implementation("androidx.localbroadcastmanager:localbroadcastmanager:1.1.0")
+    implementation(libs.gson)
+    implementation(libs.androidx.recyclerview)
+    implementation(libs.libsu.core)
+    implementation(libs.kotlinx.coroutines.core)
+    implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.androidx.viewpager2)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
     implementation(libs.androidx.constraintlayout)
+    implementation(libs.androidx.lifecycle.viewmodel)
+    implementation(libs.androidx.lifecycle.livedata)
     testImplementation(libs.junit)
+    testImplementation(libs.robolectric)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
 }

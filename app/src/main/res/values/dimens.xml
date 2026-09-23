@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="app_page_horizontal_margin">16dp</dimen>
+    <dimen name="app_card_min_height">72dp</dimen>
+    <dimen name="app_card_corner_radius">24dp</dimen>
+    <dimen name="app_card_spacing">12dp</dimen>
+    <dimen name="app_row_icon_size">24dp</dimen>
+    <dimen name="app_row_title_size">16sp</dimen>
+    <dimen name="app_row_subtitle_size">13sp</dimen>
+</resources>

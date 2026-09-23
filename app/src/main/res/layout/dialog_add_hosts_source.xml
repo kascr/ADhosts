@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp">
+
+    <TextView
+        style="@style/TextAppearance.ADHosts.DialogTitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/add_hosts_source_title" />
+
+    <TextView
+        style="@style/TextAppearance.ADHosts.DialogSubtitle"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:layout_marginBottom="20dp"
+        android:text="@string/add_hosts_source_hint" />
+
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/manualRuleOption"
+        style="@style/Widget.ADHosts.SubscriptionCard"
+        android:layout_marginBottom="12dp"
+        android:clickable="true"
+        android:focusable="true"
+        android:foreground="?attr/selectableItemBackground">
+
+        <LinearLayout style="@style/Widget.ADHosts.SubscriptionRow">
+
+            <FrameLayout
+                style="@style/Widget.ADHosts.ToolIconContainer"
+                android:background="@drawable/hosts_panel_icon_bg">
+
+                <ImageView
+                    style="@style/Widget.ADHosts.ToolIcon"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_wrench"
+                    app:tint="@color/tool_wallpaper_icon" />
+            </FrameLayout>
+
+            <LinearLayout style="@style/Widget.ADHosts.ToolTextGroup">
+
+                <TextView
+                    style="@style/TextAppearance.ADHosts.RowTitle.Bold"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/manual_hosts_rules" />
+
+                <TextView
+                    style="@style/TextAppearance.ADHosts.RowSubtitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/manual_hosts_rules_summary" />
+            </LinearLayout>
+
+            <ImageView
+                style="@style/Widget.ADHosts.SubscriptionChevron"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_chevron_right" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/networkSubscriptionOption"
+        style="@style/Widget.ADHosts.SubscriptionCard"
+        android:clickable="true"
+        android:focusable="true"
+        android:foreground="?attr/selectableItemBackground">
+
+        <LinearLayout style="@style/Widget.ADHosts.SubscriptionRow">
+
+            <FrameLayout
+                style="@style/Widget.ADHosts.ToolIconContainer"
+                android:background="@drawable/hosts_panel_icon_bg">
+
+                <ImageView
+                    style="@style/Widget.ADHosts.ToolIcon"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_link"
+                    app:tint="@color/md_theme_primary" />
+            </FrameLayout>
+
+            <LinearLayout style="@style/Widget.ADHosts.ToolTextGroup">
+
+                <TextView
+                    style="@style/TextAppearance.ADHosts.RowTitle.Bold"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/network_hosts_subscription" />
+
+                <TextView
+                    style="@style/TextAppearance.ADHosts.RowSubtitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/network_hosts_subscription_summary" />
+            </LinearLayout>
+
+            <ImageView
+                style="@style/Widget.ADHosts.SubscriptionChevron"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_chevron_right" />
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/cancelButton"
+        style="@style/Widget.ADHosts.PillButton.TextCompact"
+        android:layout_gravity="end"
+        android:layout_marginTop="20dp"
+        android:text="@string/cancel"
+        app:icon="@drawable/ic_close_circle" />
+
+</LinearLayout>

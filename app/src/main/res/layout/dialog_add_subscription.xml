@@ -4,155 +4,145 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:background="@drawable/ounded_dialog_background"
     android:padding="24dp">
 
-    <!-- 标题行：图标 + 文字 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
+        android:layout_marginBottom="20dp"
         android:gravity="center_vertical"
-        android:layout_marginBottom="20dp">
+        android:orientation="horizontal">
 
         <FrameLayout
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:background="@drawable/tool_icon_bg"
-            android:backgroundTint="#201565C0">
+            style="@style/Widget.ADHosts.ToolIconContainer">
 
             <ImageView
-                android:layout_width="22dp"
-                android:layout_height="22dp"
-                android:layout_gravity="center"
+                style="@style/Widget.ADHosts.ToolIcon"
+                android:contentDescription="@null"
                 android:src="@drawable/ic_link"
-                android:tint="#FF42A5F5" />
+                app:tint="@color/md_theme_primary" />
         </FrameLayout>
 
         <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:layout_marginStart="14dp"
-            android:orientation="vertical">
+            style="@style/Widget.ADHosts.ToolTextGroup">
 
             <TextView
+                style="@style/TextAppearance.ADHosts.DialogTitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/add_subscription"
-                android:textColor="#E6EDF3"
-                android:textSize="18sp"
-                android:textStyle="bold" />
+                android:text="@string/add_subscription" />
 
             <TextView
+                style="@style/TextAppearance.ADHosts.DialogSubtitle"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:text="@string/add_subscription_hint"
-                android:textColor="#8B949E"
-                android:textSize="12sp" />
+                android:text="@string/add_subscription_hint" />
         </LinearLayout>
     </LinearLayout>
 
-    <!-- 分隔线 -->
     <View
         android:layout_width="match_parent"
         android:layout_height="1dp"
-        android:background="#30363D"
-        android:layout_marginBottom="20dp" />
+        android:layout_marginBottom="20dp"
+        android:background="@color/md_theme_outlineVariant" />
 
-    <!-- URL 输入区域标签 -->
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="@string/subscription_url_label"
-        android:textColor="#8B949E"
-        android:textSize="12sp"
-        android:textStyle="bold"
-        android:textAllCaps="true"
+        android:layout_marginBottom="8dp"
         android:letterSpacing="0.05"
-        android:layout_marginBottom="8dp" />
+        android:text="@string/subscription_name_label"
+        android:textAllCaps="true"
+        android:textColor="@color/md_theme_onSurfaceVariant"
+        android:textSize="12sp"
+        android:textStyle="bold" />
 
-    <!-- URL 输入框 -->
     <com.google.android.material.textfield.TextInputLayout
+        style="@style/Widget.ADHosts.TextInputLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        app:boxBackgroundColor="#21262D"
-        app:boxStrokeColor="#42A5F5"
         app:boxStrokeWidth="1.5dp"
-        app:hintTextColor="#42A5F5"
         app:endIconMode="clear_text"
-        app:endIconTint="#8B949E"
-        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+        app:endIconTint="@color/md_theme_onSurfaceVariant">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/editTextName"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/subscription_name_hint"
+            android:imeOptions="actionNext"
+            android:inputType="textCapSentences"
+            android:paddingVertical="14dp"
+            android:singleLine="true"
+            android:textColor="@color/md_theme_onSurface"
+            android:textColorHint="@color/md_theme_onSurfaceVariant"
+            android:textSize="14sp" />
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="8dp"
+        android:letterSpacing="0.05"
+        android:text="@string/subscription_url_label"
+        android:textAllCaps="true"
+        android:textColor="@color/md_theme_onSurfaceVariant"
+        android:textSize="12sp"
+        android:textStyle="bold" />
+
+    <com.google.android.material.textfield.TextInputLayout
+        style="@style/Widget.ADHosts.TextInputLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:boxStrokeWidth="1.5dp"
+        app:endIconMode="clear_text"
+        app:endIconTint="@color/md_theme_onSurfaceVariant">
 
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/editTextUrl"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:hint="https://example.com/hosts.txt"
-            android:inputType="textUri"
-            android:textColor="#E6EDF3"
-            android:textColorHint="#484F58"
-            android:textSize="14sp"
-            android:paddingVertical="14dp"
+            android:hint="@string/add_subscription_url_example"
             android:imeOptions="actionDone"
-            android:singleLine="true" />
+            android:inputType="textUri"
+            android:paddingVertical="14dp"
+            android:singleLine="true"
+            android:textColor="@color/md_theme_onSurface"
+            android:textColorHint="@color/md_theme_onSurfaceVariant"
+            android:textSize="14sp" />
     </com.google.android.material.textfield.TextInputLayout>
 
-    <!-- 提示文字 -->
-    <LinearLayout
+    <com.google.android.material.textview.MaterialTextView
+        style="@style/TextAppearance.ADHosts.DialogSubtitle"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
         android:layout_marginTop="10dp"
-        android:layout_marginBottom="24dp">
+        android:layout_marginBottom="24dp"
+        android:drawablePadding="6dp"
+        android:gravity="center_vertical"
+        android:text="@string/add_subscription_tip"
+        app:drawableStartCompat="@drawable/ic_network_hint"
+        app:drawableTint="@color/md_theme_onSurfaceVariant" />
 
-        <ImageView
-            android:layout_width="14dp"
-            android:layout_height="14dp"
-            android:src="@drawable/ic_network"
-            android:tint="#8B949E" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="6dp"
-            android:text="@string/add_subscription_tip"
-            android:textColor="#8B949E"
-            android:textSize="12sp" />
-    </LinearLayout>
-
-    <!-- 按钮行 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="end">
+        android:gravity="end"
+        android:orientation="horizontal">
 
-        <!-- 取消按钮 -->
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnCancel"
-            android:layout_width="wrap_content"
-            android:layout_height="40dp"
-            android:layout_marginEnd="12dp"
+            style="@style/Widget.ADHosts.PillButton.TextCompact"
+            android:layout_marginEnd="8dp"
             android:text="@string/cancel"
-            android:textColor="#8B949E"
-            android:textSize="14sp"
-            android:background="@android:color/transparent"
-            style="@style/Widget.MaterialComponents.Button.TextButton" />
+            app:icon="@drawable/ic_close_circle" />
 
-        <!-- 确认按钮 -->
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnConfirm"
-            android:layout_width="wrap_content"
-            android:layout_height="40dp"
+            style="@style/Widget.ADHosts.PillButton.Success.Compact"
             android:text="@string/confirm"
-            android:textColor="#FFFFFF"
-            android:textSize="14sp"
-            android:backgroundTint="#1565C0"
-            android:paddingHorizontal="20dp"
-            style="@style/Widget.MaterialComponents.Button" />
+            app:icon="@drawable/ic_check_circle" />
     </LinearLayout>
 
 </LinearLayout>

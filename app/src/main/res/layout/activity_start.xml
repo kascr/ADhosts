@@ -1,61 +1,179 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/start_layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="?android:attr/windowBackground">
+    android:paddingHorizontal="24dp">
 
-    <!-- 应用 Logo -->
-    <ImageView
-        android:id="@+id/logo_image"
-        android:layout_width="120dp"
-        android:layout_height="120dp"
-        android:src="@mipmap/ic_launcher"
-        android:alpha="0"
-        app:layout_constraintBottom_toBottomOf="parent"
+    <LinearLayout
+        android:id="@+id/brand_group"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:gravity="center_horizontal"
+        android:orientation="vertical"
+        app:layout_constraintBottom_toTopOf="@id/version_text"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.4" />
+        app:layout_constraintVertical_bias="0.42">
 
-    <!-- 应用名称 -->
-    <TextView
-        android:id="@+id/app_name_text"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
+        <ImageView
+            android:id="@+id/logo_image"
+            android:layout_width="82dp"
+            android:layout_height="82dp"
+            android:alpha="0"
+            android:contentDescription="@null"
+            android:src="@mipmap/ic_launcher" />
+
+        <TextView
+            android:id="@+id/app_name_text"
+            style="@style/TextAppearance.ADHosts.SplashTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:alpha="0"
+            android:text="@string/splash_app_name" />
+
+        <com.google.android.material.progressindicator.CircularProgressIndicator
+            android:id="@+id/loading_progress"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="28dp"
+            android:indeterminate="true"
+            app:indicatorSize="28dp"
+            app:trackThickness="3dp" />
+    </LinearLayout>
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="0dp"
+        android:layout_height="0dp"
         android:layout_marginTop="16dp"
-        android:text="@string/app_name"
-        android:textSize="24sp"
-        android:textStyle="bold"
-        android:alpha="0"
+        android:layout_marginBottom="16dp"
+        android:clipToPadding="false"
+        android:fillViewport="false"
+        android:overScrollMode="never"
+        android:paddingVertical="8dp"
+        app:layout_constraintBottom_toTopOf="@id/version_text"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/logo_image" />
+        app:layout_constraintTop_toBottomOf="@id/brand_group">
 
-    <!-- 加载指示器 -->
-    <com.google.android.material.progressindicator.CircularProgressIndicator
-        android:id="@+id/loading_progress"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="64dp"
-        android:indeterminate="true"
-        app:indicatorSize="32dp"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/setup_card"
+            style="@style/Widget.ADHosts.Card"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:alpha="0"
+            android:visibility="gone">
 
-    <!-- 版本号 -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="20dp">
+
+                <ImageView
+                android:id="@+id/setup_icon"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="@drawable/md3_icon_container_bg"
+                android:contentDescription="@null"
+                android:padding="8dp"
+                android:src="@drawable/ic_shield"
+                app:tint="@color/md_theme_primary" />
+
+                <TextView
+                android:id="@+id/setup_title"
+                style="@style/TextAppearance.ADHosts.DialogTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                tools:text="首次配置" />
+
+                <TextView
+                android:id="@+id/setup_message"
+                style="@style/TextAppearance.ADHosts.RowSubtitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:lineSpacingExtra="2dp"
+                tools:text="需要 Root 权限来管理 Hosts 模块。" />
+
+                <TextView
+                android:id="@+id/setup_detail"
+                style="@style/TextAppearance.ADHosts.VersionText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:visibility="gone"
+                tools:text="Root: KernelSU · 模块: v11"
+                tools:visibility="visible" />
+
+                <LinearLayout
+                android:id="@+id/recommended_options"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:orientation="vertical"
+                android:visibility="gone"
+                tools:visibility="visible">
+
+                    <com.google.android.material.checkbox.MaterialCheckBox
+                    android:id="@+id/autumn_checkbox"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="48dp"
+                    android:text="@string/recommended_autumn_name"
+                    android:textColor="@color/md_theme_onSurface" />
+
+                    <com.google.android.material.checkbox.MaterialCheckBox
+                    android:id="@+id/github520_checkbox"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:minHeight="48dp"
+                    android:text="@string/recommended_github520_name"
+                    android:textColor="@color/md_theme_onSurface" />
+                </LinearLayout>
+
+                <com.google.android.material.progressindicator.LinearProgressIndicator
+                android:id="@+id/setup_progress"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="18dp"
+                android:indeterminate="true"
+                android:visibility="gone" />
+
+                <com.google.android.material.button.MaterialButton
+                android:id="@+id/setup_primary_button"
+                style="@style/Widget.ADHosts.PillButton.Neutral.FullWidth"
+                android:layout_marginTop="18dp"
+                tools:text="开始配置" />
+
+                <com.google.android.material.button.MaterialButton
+                android:id="@+id/setup_secondary_button"
+                style="@style/Widget.ADHosts.PillButton.TextCompact"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="8dp"
+                android:visibility="gone"
+                tools:text="退出应用"
+                tools:visibility="visible" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+    </androidx.core.widget.NestedScrollView>
+
     <TextView
         android:id="@+id/version_text"
+        style="@style/TextAppearance.ADHosts.VersionText"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginBottom="24dp"
-        android:text="v1.1.7"
-        android:textColor="?android:attr/textColorSecondary"
-        android:textSize="12sp"
+        android:alpha="0.72"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
+        app:layout_constraintStart_toStartOf="parent"
+        tools:text="v2.2.0" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

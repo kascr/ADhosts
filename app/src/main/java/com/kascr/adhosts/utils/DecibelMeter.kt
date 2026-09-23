@@ -11,6 +11,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.kascr.adhosts.R
 import kotlin.math.log10
 import kotlin.math.sqrt
 
@@ -28,34 +29,44 @@ class DecibelMeter(
      * 分贝值更新回调接口
      */
     interface DecibelCallback {
+        fun onMeasurementStarted()
+        fun onMeasurementStopped()
         fun onDecibelUpdate(db: Double)
     }
 
     private var audioRecord: AudioRecord? = null
-    private val handler = Handler(Looper.getMainLooper())
+    private val mainHandler = Handler(Looper.getMainLooper())
+    @Volatile private var isMeasuring = false
+    @Volatile private var measurementThread: Thread? = null
+    private var isPermissionRequestPending = false
 
     companion object {
-        private const val TAG = "DecibelMeter"
         private const val SAMPLE_RATE = 44100  // 采样率 44.1kHz
+        private const val UPDATE_INTERVAL_MS = 500L
     }
 
     // 动态计算最小缓冲区大小
-    private val BUFFER_SIZE = AudioRecord.getMinBufferSize(
+    private val minBufferSizeBytes = AudioRecord.getMinBufferSize(
         SAMPLE_RATE,
         AudioFormat.CHANNEL_IN_MONO,
         AudioFormat.ENCODING_PCM_16BIT
     )
+    private val bufferSizeBytes = minBufferSizeBytes
+    private val bufferSampleCount = bufferSizeBytes / 2
 
     /**
      * 启动分贝仪（自动处理权限请求）
      */
     fun start() {
+        if (isMeasuring || audioRecord != null || isPermissionRequestPending) return
+
         if (ContextCompat.checkSelfPermission(
                 activity,
                 Manifest.permission.RECORD_AUDIO
             ) != PackageManager.PERMISSION_GRANTED
         ) {
             // 请求录音权限
+            isPermissionRequestPending = true
             ActivityCompat.requestPermissions(
                 activity,
                 arrayOf(Manifest.permission.RECORD_AUDIO),
@@ -70,62 +81,86 @@ class DecibelMeter(
      * 开始录音并周期性计算分贝值
      */
     private fun startRecording() {
+        if (isMeasuring || audioRecord != null) return
+
         try {
-            audioRecord = AudioRecord(
+            if (minBufferSizeBytes <= 0) {
+                throw IllegalStateException(activity.getString(R.string.decibel_audio_init_failed))
+            }
+
+            val recorder = AudioRecord(
                 MediaRecorder.AudioSource.MIC,
                 SAMPLE_RATE,
                 AudioFormat.CHANNEL_IN_MONO,
                 AudioFormat.ENCODING_PCM_16BIT,
-                BUFFER_SIZE
+                bufferSizeBytes
             )
 
-            if (audioRecord?.state != AudioRecord.STATE_INITIALIZED) {
-                throw IllegalStateException("AudioRecord 初始化失败")
+            if (recorder.state != AudioRecord.STATE_INITIALIZED) {
+                recorder.release()
+                throw IllegalStateException(activity.getString(R.string.decibel_audio_init_failed))
             }
 
-            audioRecord?.startRecording()
-            handler.postDelayed(updateDbRunnable, 500)
+            audioRecord = recorder
+            recorder.startRecording()
+            isMeasuring = true
+            callback.onMeasurementStarted()
+            measurementThread = Thread(
+                { readMeasurements(recorder) },
+                "DecibelMeter"
+            ).apply { start() }
 
         } catch (e: SecurityException) {
-            Toast.makeText(activity, "权限被拒绝，无法启动分贝仪", Toast.LENGTH_SHORT).show()
+            releaseRecorder()
+            callback.onMeasurementStopped()
+            Toast.makeText(activity, R.string.decibel_permission_denied_start, Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {
+            releaseRecorder()
+            callback.onMeasurementStopped()
+            Toast.makeText(activity, e.message ?: activity.getString(R.string.decibel_audio_init_failed), Toast.LENGTH_SHORT).show()
             e.printStackTrace()
         }
     }
 
-    /**
-     * 周期性读取音频数据并计算分贝值，通过回调通知 UI
-     */
-    private val updateDbRunnable = object : Runnable {
-        override fun run() {
-            // 守卫：若已停止则直接返回，防止竞争访问已释放的 AudioRecord
-            if (audioRecord == null) return
-            audioRecord?.let { recorder ->
-                val buffer = ShortArray(BUFFER_SIZE)
-                val readResult = recorder.read(buffer, 0, buffer.size)
+    private fun readMeasurements(recorder: AudioRecord) {
+        val buffer = ShortArray(bufferSampleCount)
+        var lastUiUpdateAt = 0L
 
-                if (readResult > 0) {
-                    val amplitude = calculateAmplitude(buffer)
-                    if (amplitude > 0) {
-                        val db = 20.0 * log10(amplitude)
-                        // 通过回调传递分贝值（已在主线程）
+        while (isMeasuring && audioRecord === recorder) {
+            val readResult = try {
+                recorder.read(buffer, 0, buffer.size)
+            } catch (_: IllegalStateException) {
+                break
+            }
+
+            if (readResult <= 0) continue
+
+            val now = System.currentTimeMillis()
+            if (now - lastUiUpdateAt < UPDATE_INTERVAL_MS) continue
+            lastUiUpdateAt = now
+
+            val amplitude = calculateAmplitude(buffer, readResult)
+            if (amplitude > 0) {
+                val db = 20.0 * log10(amplitude)
+                mainHandler.post {
+                    if (isMeasuring && audioRecord === recorder) {
                         callback.onDecibelUpdate(db)
                     }
                 }
             }
-            handler.postDelayed(this, 500)
         }
     }
 
     /**
      * 计算音频信号的 RMS 幅度（均方根）
      */
-    private fun calculateAmplitude(buffer: ShortArray): Double {
+    private fun calculateAmplitude(buffer: ShortArray, samplesRead: Int): Double {
         var sum = 0.0
-        for (sample in buffer) {
-            sum += sample.toDouble() * sample.toDouble()
+        for (index in 0 until samplesRead) {
+            val sample = buffer[index].toDouble()
+            sum += sample * sample
         }
-        return sqrt(sum / buffer.size)
+        return sqrt(sum / samplesRead)
     }
 
     /**
@@ -133,10 +168,12 @@ class DecibelMeter(
      */
     fun onRequestPermissionsResult(requestCode: Int, grantResults: IntArray) {
         if (requestCode == permissionRequestCode) {
+            isPermissionRequestPending = false
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
                 startRecording()
             } else {
-                Toast.makeText(activity, "权限被拒绝，无法使用分贝仪", Toast.LENGTH_SHORT).show()
+                callback.onMeasurementStopped()
+                Toast.makeText(activity, R.string.decibel_permission_denied_use, Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -144,12 +181,30 @@ class DecibelMeter(
     /**
      * 停止分贝仪并释放资源
      */
-    fun stop() {
-        handler.removeCallbacks(updateDbRunnable)
-        audioRecord?.apply {
-            stop()
-            release()
+    fun stop(notifyStopped: Boolean = true) {
+        val hadActiveRecorder = audioRecord != null || isMeasuring
+        releaseRecorder()
+        if (notifyStopped && hadActiveRecorder) {
+            callback.onMeasurementStopped()
         }
+    }
+
+    private fun releaseRecorder() {
+        isMeasuring = false
+        val recorder = audioRecord
         audioRecord = null
+        measurementThread?.interrupt()
+        measurementThread = null
+        recorder?.apply {
+            try {
+                if (recordingState == AudioRecord.RECORDSTATE_RECORDING) {
+                    stop()
+                }
+            } catch (_: IllegalStateException) {
+                // The recorder can be released concurrently with its worker thread.
+            } finally {
+                release()
+            }
+        }
     }
 }

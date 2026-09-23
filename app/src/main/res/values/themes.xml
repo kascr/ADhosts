@@ -1,6 +1,7 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- 强制使用暗色主题（Dark.NoActionBar），不再跟随系统 DayNight -->
+    <!-- Base app theme -->
     <style name="AppTheme" parent="Theme.Material3.Dark.NoActionBar">
+        <!-- Material 3 color roles -->
         <item name="colorPrimary">@color/md_theme_primary</item>
         <item name="colorOnPrimary">@color/md_theme_onPrimary</item>
         <item name="colorPrimaryContainer">@color/md_theme_primaryContainer</item>
@@ -26,17 +27,69 @@
         <item name="colorOutline">@color/md_theme_outline</item>
         <item name="colorOutlineVariant">@color/md_theme_outlineVariant</item>
         <item name="colorSurfaceContainerHigh">@color/md_theme_surfaceContainerHigh</item>
+        <item name="colorSurfaceContainer">@color/md_theme_surfaceContainer</item>
+        <item name="colorSurfaceContainerLow">@color/md_theme_surfaceContainerLow</item>
+        <item name="colorSurfaceContainerHighest">@color/md_theme_surfaceContainerHighest</item>
 
-        <!-- Status bar and Navigation bar -->
+        <!-- App-specific surfaces -->
+        <item name="mainBackgroundScrimColor">#66121318</item>
+        <item name="appCardBackgroundColor">#B01E1F25</item>
+        <item name="appCardHighBackgroundColor">#C0292A2F</item>
+        <item name="appCardStrokeColor">#80B7CFFF</item>
+        <item name="appIconContainerBackgroundColor">@color/md_theme_secondaryContainer</item>
+        <item name="appSelectedNavPillColor">#B05C4FB0</item>
+        <item name="appNavGlassBackgroundColor">#D52A4160</item>
+        <item name="appStatusEnabledBackgroundColor">#CC563B8A</item>
+        <item name="appStatusDisabledBackgroundColor">#CC93000A</item>
+        <item name="appStatusPendingBackgroundColor">#CC604100</item>
+        <item name="appStatusCheckingBackgroundColor">#B0292A2F</item>
+
+        <!-- Shared widget defaults -->
+        <item name="materialButtonStyle">@style/Widget.ADHosts.Button</item>
+        <item name="materialCardViewStyle">@style/Widget.ADHosts.Card</item>
+        <item name="textInputStyle">@style/Widget.ADHosts.TextInputLayout</item>
+
+        <!-- System bars -->
+        <item name="android:windowDisablePreview">true</item>
+        <item name="android:windowBackground">@color/md_theme_background</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:windowLightStatusBar">false</item>
         <item name="android:windowLightNavigationBar">false</item>
     </style>
 
-    <!-- MainActivity 重建时禁用入场动画，避免语言切换闪动 -->
+    <!-- Disable activity transition animations for smoother recreate/splash handoff -->
     <style name="AppTheme.NoAnimation" parent="AppTheme">
         <item name="android:windowAnimationStyle">@style/NoAnimation</item>
+    </style>
+
+    <!-- More transparent surface set used when a custom background image is active -->
+    <style name="AppTheme.NoAnimation.Background" parent="AppTheme.NoAnimation">
+        <item name="mainBackgroundScrimColor">#66121318</item>
+        <item name="appCardBackgroundColor">#991E1F25</item>
+        <item name="appCardHighBackgroundColor">#B3292A2F</item>
+        <item name="appCardStrokeColor">#90C5D8FF</item>
+        <item name="appIconContainerBackgroundColor">#99454559</item>
+        <item name="appSelectedNavPillColor">#B8665BC4</item>
+        <item name="appNavGlassBackgroundColor">#E02A4160</item>
+        <item name="appStatusEnabledBackgroundColor">#80563B8A</item>
+        <item name="appStatusDisabledBackgroundColor">#6B93000A</item>
+        <item name="appStatusPendingBackgroundColor">#6B604100</item>
+        <item name="appStatusCheckingBackgroundColor">#66292A2F</item>
+    </style>
+
+    <style name="AppTheme.Crash" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="colorPrimary">#FFBDC7FF</item>
+        <item name="colorOnPrimary">#FF202A5C</item>
+        <item name="colorSurface">#FF17181E</item>
+        <item name="colorOnSurface">#FFF3EDF7</item>
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowBackground">@drawable/crash_screen_background</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar">false</item>
+        <item name="android:windowNoTitle">true</item>
     </style>
 
     <style name="NoAnimation">
@@ -48,18 +101,30 @@
         <item name="android:taskOpenExitAnimation">@null</item>
     </style>
 
-    <!-- LSPosed 风格导航栏选中态胶囊样式 -->
-    <style name="NavIndicatorStyle">
-        <item name="android:color">#3D4A6B</item>
-        <item name="shapeAppearance">@style/NavIndicatorShape</item>
-        <!-- 内边距控制胶囊大小，让图标和文字更紧凑 -->
-        <item name="android:paddingTop">4dp</item>
-        <item name="android:paddingBottom">4dp</item>
+    <style name="Widget.ADHosts.Card" parent="Widget.Material3.CardView.Filled">
+        <item name="cardBackgroundColor">?attr/appCardBackgroundColor</item>
+        <item name="cardCornerRadius">@dimen/app_card_corner_radius</item>
+        <item name="cardElevation">0dp</item>
+        <item name="strokeColor">?attr/appCardStrokeColor</item>
+        <item name="strokeWidth">1dp</item>
     </style>
 
-    <style name="NavIndicatorShape">
-        <item name="cornerFamily">rounded</item>
-        <item name="cornerSize">50%</item>
+    <style name="Widget.ADHosts.Button" parent="Widget.Material3.Button">
+        <item name="cornerRadius">20dp</item>
+        <item name="android:minHeight">48dp</item>
+        <item name="android:paddingStart">16dp</item>
+        <item name="android:paddingEnd">16dp</item>
+        <item name="iconGravity">textStart</item>
+        <item name="iconPadding">8dp</item>
     </style>
 
+    <style name="Widget.ADHosts.TextInputLayout" parent="Widget.Material3.TextInputLayout.OutlinedBox">
+        <item name="boxBackgroundColor">@color/md_theme_surfaceContainerHigh</item>
+        <item name="boxStrokeColor">@color/md_theme_outline</item>
+        <item name="hintTextColor">@color/md_theme_onSurfaceVariant</item>
+        <item name="boxCornerRadiusTopStart">16dp</item>
+        <item name="boxCornerRadiusTopEnd">16dp</item>
+        <item name="boxCornerRadiusBottomStart">16dp</item>
+        <item name="boxCornerRadiusBottomEnd">16dp</item>
+    </style>
 </resources>

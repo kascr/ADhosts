@@ -1,5 +1,6 @@
 pluginManagement {
     repositories {
+        maven("https://mirrors.cloud.tencent.com/repository/maven-public/")
         google {
             content {
                 includeGroupByRegex("com\\.android.*")
@@ -11,20 +12,15 @@ pluginManagement {
         gradlePluginPortal()
     }
 }
-plugins {
-    id("org.gradle.toolchains.foojay-resolver-convention") version "0.10.0"
-}
-
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
         google()
         mavenCentral()
-    }
-    repositories {
         maven("https://jitpack.io")
+        maven("https://mirrors.cloud.tencent.com/repository/maven-public/")
     }
 }
 
-rootProject.name = "My Application"
+rootProject.name = "ADhosts"
 include(":app")

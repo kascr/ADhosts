@@ -1,215 +1,175 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.core.widget.NestedScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/md_theme_background"
-    android:clipToPadding="false">
+    android:background="@android:color/transparent"
+    android:orientation="vertical">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:paddingStart="16dp"
-        android:paddingEnd="16dp"
         android:paddingTop="16dp"
-        android:paddingBottom="100dp">
+        android:paddingEnd="16dp"
+        android:paddingBottom="0dp">
 
-        <!-- 状态卡片（颜色由代码动态切换） -->
-        <FrameLayout
+        <com.google.android.material.card.MaterialCardView
             android:id="@+id/statusCard"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="12dp"
-            android:background="@drawable/status_card_disabled_bg"
-            android:padding="20dp">
+            style="@style/Widget.ADHosts.HighlightCard"
+            android:layout_marginBottom="10dp"
+            app:cardBackgroundColor="@color/md_hosts_status_panel"
+            app:strokeColor="@color/md_hosts_status_stroke"
+            app:strokeWidth="1dp">
 
             <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
+                style="@style/Widget.ADHosts.HighlightCard.Content">
 
-                <!-- 状态图标圆形背景 -->
                 <FrameLayout
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:background="@drawable/status_icon_bg">
+                    android:id="@+id/statusIconContainer"
+                    style="@style/Widget.ADHosts.StatusIconContainer"
+                    android:background="@drawable/hosts_status_icon_bg">
 
                     <ImageView
                         android:id="@+id/statusIcon"
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
-                        android:layout_gravity="center"
+                        style="@style/Widget.ADHosts.StatusIcon"
+                        android:contentDescription="@null"
                         android:src="@drawable/ic_shield"
-                        android:tint="@android:color/white" />
+                        app:tint="@color/md_theme_primary" />
                 </FrameLayout>
 
-                <!-- 状态文字 -->
                 <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="16dp"
-                    android:layout_weight="1"
-                    android:orientation="vertical">
+                    style="@style/Widget.ADHosts.StatusTextGroup">
 
                     <TextView
                         android:id="@+id/statusText"
+                        style="@style/TextAppearance.ADHosts.StatusTitle"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="@string/disabled"
-                        android:textColor="@android:color/white"
-                        android:textSize="18sp"
-                        android:textStyle="bold" />
+                        android:text="@string/hosts_checking_status" />
 
                     <TextView
                         android:id="@+id/statusRulesText"
+                        style="@style/TextAppearance.ADHosts.StatusSubtitle"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp"
-                        android:text="@string/rules_enabled"
-                        android:textColor="#AAFFFFFF"
-                        android:textSize="13sp"
-                        android:visibility="gone" />
+                        android:text="@string/hosts_checking_status_hint"
+                        android:visibility="visible" />
                 </LinearLayout>
             </LinearLayout>
-        </FrameLayout>
+        </com.google.android.material.card.MaterialCardView>
 
-        <!-- 操作按鈕行：开启拦截 | 关闭拦截 | 更新 -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="12dp"
+            android:layout_marginBottom="10dp"
+            android:baselineAligned="false"
             android:orientation="horizontal">
 
-            <!-- 开启拦截按钮 -->
-            <LinearLayout
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/openButton"
-                android:layout_width="0dp"
-                android:layout_height="48dp"
-                android:layout_marginEnd="5dp"
-                android:layout_weight="1"
-                android:background="@drawable/btn_enable_bg"
-                android:gravity="center"
-                android:orientation="horizontal">
+                style="@style/Widget.ADHosts.PillButton.Success"
+                android:layout_marginEnd="4dp"
+                android:text="@string/open_hosts"
+                app:icon="@drawable/ic_check_circle" />
 
-                <ImageView
-                    android:layout_width="16dp"
-                    android:layout_height="16dp"
-                    android:layout_marginEnd="6dp"
-                    android:src="@drawable/ic_check_circle"
-                    android:tint="@android:color/white" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/open_hosts"
-                    android:textColor="@android:color/white"
-                    android:textSize="14sp"
-                    android:textStyle="bold" />
-            </LinearLayout>
-
-            <!-- 关闭拦截按钮 -->
-            <LinearLayout
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/closeButton"
-                android:layout_width="0dp"
-                android:layout_height="48dp"
-                android:layout_marginStart="5dp"
-                android:layout_marginEnd="5dp"
-                android:layout_weight="1"
-                android:background="@drawable/btn_disable_bg"
-                android:gravity="center"
-                android:orientation="horizontal">
+                style="@style/Widget.ADHosts.PillButton.Danger"
+                android:layout_marginStart="2dp"
+                android:layout_marginEnd="2dp"
+                android:text="@string/close_hosts"
+                app:icon="@drawable/ic_cancel" />
 
-                <ImageView
-                    android:layout_width="16dp"
-                    android:layout_height="16dp"
-                    android:layout_marginEnd="6dp"
-                    android:src="@drawable/ic_cancel"
-                    android:tint="@android:color/white" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/close_hosts"
-                    android:textColor="@android:color/white"
-                    android:textSize="14sp"
-                    android:textStyle="bold" />
-            </LinearLayout>
-
-            <!-- 更新按鈕 -->
-            <LinearLayout
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/updateButton"
-                android:layout_width="0dp"
-                android:layout_height="48dp"
-                android:layout_marginStart="5dp"
-                android:layout_weight="1"
-                android:background="@drawable/btn_sync_bg"
-                android:gravity="center"
-                android:orientation="horizontal">
-
-                <ImageView
-                    android:layout_width="16dp"
-                    android:layout_height="16dp"
-                    android:layout_marginEnd="6dp"
-                    android:src="@drawable/ic_sync"
-                    android:tint="@color/md_theme_primary" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/update_subscription"
-                    android:textColor="@color/md_theme_primary"
-                    android:textSize="14sp"
-                    android:textStyle="bold" />
-            </LinearLayout>
+                style="@style/Widget.ADHosts.PillButton.Neutral"
+                android:layout_marginStart="4dp"
+                android:text="@string/update_subscription"
+                app:icon="@drawable/ic_sync" />
         </LinearLayout>
 
-        <!-- DNS 选择行 -->
         <LinearLayout
             android:id="@+id/dnsChip"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
-            android:background="@drawable/dns_row_bg"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:padding="14dp">
+            style="@style/Widget.ADHosts.InfoRow"
+            android:layout_marginBottom="10dp"
+            android:background="@drawable/hosts_panel_bg">
+
+            <FrameLayout
+                style="@style/Widget.ADHosts.ToolIconContainer"
+                android:background="@drawable/hosts_panel_icon_bg">
+
+                <ImageView
+                    style="@style/Widget.ADHosts.ToolIcon"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_network"
+                    app:tint="@color/md_theme_primary" />
+            </FrameLayout>
+
+            <LinearLayout
+                style="@style/Widget.ADHosts.ToolTextGroup">
+
+                <TextView
+                    style="@style/TextAppearance.ADHosts.RowTitle.Bold"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/current_dns" />
+
+                <TextView
+                    android:id="@+id/dnsValueText"
+                    style="@style/TextAppearance.ADHosts.RowSubtitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/restore_default" />
+            </LinearLayout>
 
             <ImageView
-                android:layout_width="18dp"
-                android:layout_height="18dp"
-                android:layout_marginEnd="10dp"
-                android:src="@drawable/ic_network"
-                android:tint="@color/md_theme_primary" />
-
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/current_dns"
-                android:textColor="@color/md_theme_secondary"
-                android:textSize="14sp" />
-
-            <TextView
-                android:id="@+id/dnsValueText"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginEnd="4dp"
-                android:text="@string/restore_default"
-                android:textColor="@color/md_theme_primary"
-                android:textSize="14sp"
-                android:textStyle="bold" />
-
-            <ImageView
-                android:layout_width="16dp"
-                android:layout_height="16dp"
-                android:src="@drawable/ic_chevron_right"
-                android:tint="@color/md_theme_secondary" />
+                style="@style/Widget.ADHosts.RowChevron.Small"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_chevron_right" />
         </LinearLayout>
 
-        <!-- 订阅源列表头部 -->
+        <LinearLayout
+            android:id="@+id/manualRulesCard"
+            style="@style/Widget.ADHosts.InfoRow"
+            android:layout_marginBottom="10dp"
+            android:background="@drawable/hosts_panel_bg"
+            android:visibility="gone">
+
+            <FrameLayout
+                style="@style/Widget.ADHosts.ToolIconContainer"
+                android:background="@drawable/hosts_panel_icon_bg">
+
+                <ImageView
+                    style="@style/Widget.ADHosts.ToolIcon"
+                    android:contentDescription="@null"
+                    android:src="@drawable/ic_wrench"
+                    app:tint="@color/md_theme_primary" />
+            </FrameLayout>
+
+            <LinearLayout style="@style/Widget.ADHosts.ToolTextGroup">
+
+                <TextView
+                    style="@style/TextAppearance.ADHosts.RowTitle.Bold"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/manual_hosts_rules" />
+
+                <TextView
+                    android:id="@+id/manualRulesCountText"
+                    style="@style/TextAppearance.ADHosts.RowSubtitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+            </LinearLayout>
+
+            <ImageView
+                style="@style/Widget.ADHosts.RowChevron.Small"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_chevron_right" />
+        </LinearLayout>
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -219,81 +179,57 @@
 
             <TextView
                 android:id="@+id/subscriptionTitle"
+                style="@style/TextAppearance.ADHosts.RowTitle.Bold"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:text="@string/subscription_title"
-                android:textColor="@color/md_theme_onBackground"
-                android:textSize="16sp"
-                android:textStyle="bold" />
+                android:text="@string/subscription_title" />
 
-            <!-- 添加按钮（蓝色胶囊） -->
-            <LinearLayout
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/recommendedButton"
+                style="@style/Widget.ADHosts.PillButton.Recommended.Compact"
+                android:layout_marginEnd="8dp"
+                android:text="@string/btn_recommended"
+                app:icon="@drawable/ic_shield" />
+
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/outlinedButton"
-                android:layout_width="wrap_content"
-                android:layout_height="32dp"
-                android:background="@drawable/btn_add_bg"
-                android:gravity="center"
-                android:orientation="horizontal"
-                android:paddingStart="12dp"
-                android:paddingEnd="12dp">
-
-                <ImageView
-                    android:layout_width="14dp"
-                    android:layout_height="14dp"
-                    android:layout_marginEnd="4dp"
-                    android:src="@drawable/ic_add"
-                    android:tint="@android:color/white" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/btn_add"
-                    android:textColor="@android:color/white"
-                    android:textSize="13sp"
-                    android:textStyle="bold" />
-            </LinearLayout>
+                style="@style/Widget.ADHosts.PillButton.Neutral.Compact"
+                android:text="@string/btn_add"
+                app:icon="@drawable/ic_add" />
         </LinearLayout>
 
-        <!-- 订阅列表 -->
+    </LinearLayout>
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/recyclerView"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:nestedScrollingEnabled="false"
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingBottom="140dp"
             tools:listitem="@layout/item_subscription" />
 
-        <!-- 空状态提示 -->
-        <LinearLayout
+        <com.google.android.material.textview.MaterialTextView
             android:id="@+id/emptyText"
+            style="@style/TextAppearance.ADHosts.RowSubtitle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginStart="16dp"
             android:layout_marginTop="40dp"
+            android:layout_marginEnd="16dp"
+            android:drawablePadding="12dp"
             android:gravity="center"
-            android:orientation="vertical"
-            android:visibility="gone">
+            android:text="@string/empty_subscription_hint"
+            android:visibility="gone"
+            app:drawableTint="@color/md_theme_secondary"
+            app:drawableTopCompat="@drawable/ic_link_empty" />
 
-            <ImageView
-                android:layout_width="48dp"
-                android:layout_height="48dp"
-                android:src="@drawable/ic_link"
-                android:tint="@color/md_theme_secondary"
-                android:alpha="0.5" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:gravity="center"
-                android:text="@string/empty_subscription_hint"
-                android:textColor="@color/md_theme_secondary"
-                android:textSize="15sp" />
-        </LinearLayout>
-
-        <!-- 底部占位 -->
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="16dp" />
-
-    </LinearLayout>
-</androidx.core.widget.NestedScrollView>
+    </FrameLayout>
+</LinearLayout>

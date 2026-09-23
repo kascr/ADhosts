@@ -1,0 +1,484 @@
+<resources>
+
+    <style name="TextAppearance.ADHosts.SettingsSectionHeader" parent="">
+        <item name="android:textColor">@color/md_theme_primary</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="TextAppearance.ADHosts.FunctionTitle" parent="">
+        <item name="android:textColor">?attr/colorOnSurface</item>
+        <item name="android:textSize">20sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="TextAppearance.ADHosts.VersionText" parent="">
+        <item name="android:textColor">@color/md_theme_onSurfaceVariant</item>
+        <item name="android:textSize">13sp</item>
+    </style>
+
+    <style name="TextAppearance.ADHosts.DialogTitle" parent="">
+        <item name="android:textColor">@color/md_theme_onSurface</item>
+        <item name="android:textSize">18sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="TextAppearance.ADHosts.DialogSubtitle" parent="">
+        <item name="android:textColor">@color/md_theme_onSurfaceVariant</item>
+        <item name="android:textSize">12sp</item>
+    </style>
+
+    <style name="TextAppearance.ADHosts.SplashTitle" parent="">
+        <item name="android:textColor">?attr/colorOnSurface</item>
+        <item name="android:textSize">24sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="TextAppearance.ADHosts.RowTitle" parent="">
+        <item name="android:textColor">@color/md_theme_onSurface</item>
+        <item name="android:textSize">@dimen/app_row_title_size</item>
+    </style>
+
+    <style name="TextAppearance.ADHosts.RowTitle.Bold" parent="TextAppearance.ADHosts.RowTitle">
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="TextAppearance.ADHosts.RowSubtitle" parent="">
+        <item name="android:layout_marginTop">2dp</item>
+        <item name="android:textColor">@color/md_theme_onSurfaceVariant</item>
+        <item name="android:textSize">@dimen/app_row_subtitle_size</item>
+    </style>
+
+    <style name="TextAppearance.ADHosts.StatusTitle" parent="">
+        <item name="android:textColor">@color/md_theme_onSurface</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="TextAppearance.ADHosts.StatusSubtitle" parent="">
+        <item name="android:layout_marginTop">4dp</item>
+        <item name="android:textColor">@color/md_theme_onSurfaceVariant</item>
+        <item name="android:textSize">13sp</item>
+    </style>
+
+    <style name="Widget.ADHosts.SettingsRow" parent="">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:minHeight">@dimen/app_card_min_height</item>
+        <item name="android:layout_marginHorizontal">@dimen/app_page_horizontal_margin</item>
+        <item name="android:background">@drawable/md3_card_bg</item>
+        <item name="android:clickable">true</item>
+        <item name="android:focusable">true</item>
+        <item name="android:foreground">?attr/selectableItemBackground</item>
+        <item name="android:paddingHorizontal">16dp</item>
+        <item name="android:paddingVertical">12dp</item>
+    </style>
+
+    <style name="Widget.ADHosts.SettingsRow.Icon" parent="">
+        <item name="android:layout_width">@dimen/app_row_icon_size</item>
+        <item name="android:layout_height">@dimen/app_row_icon_size</item>
+        <item name="android:tint">@color/md_theme_primary</item>
+    </style>
+
+    <style name="Widget.ADHosts.SettingsRow.Chevron" parent="">
+        <item name="android:layout_width">18dp</item>
+        <item name="android:layout_height">18dp</item>
+        <item name="android:tint">@color/md_theme_onSurfaceVariant</item>
+    </style>
+
+    <style name="Widget.ADHosts.HighlightCard" parent="Widget.Material3.CardView.Outlined">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="cardCornerRadius">22dp</item>
+        <item name="cardElevation">0dp</item>
+        <item name="strokeWidth">1dp</item>
+    </style>
+
+    <style name="Widget.ADHosts.HighlightCard.Content" parent="">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:orientation">horizontal</item>
+        <item name="android:padding">12dp</item>
+    </style>
+
+    <style name="Widget.ADHosts.StatusIconContainer" parent="">
+        <item name="android:layout_width">48dp</item>
+        <item name="android:layout_height">48dp</item>
+        <item name="android:background">@drawable/md3_icon_container_bg</item>
+    </style>
+
+    <style name="Widget.ADHosts.StatusIcon" parent="">
+        <item name="android:layout_width">24dp</item>
+        <item name="android:layout_height">24dp</item>
+        <item name="android:layout_gravity">center</item>
+    </style>
+
+    <style name="Widget.ADHosts.StatusTextGroup" parent="">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:layout_marginStart">16dp</item>
+        <item name="android:orientation">vertical</item>
+    </style>
+
+    <style name="Widget.ADHosts.InfoRow" parent="Widget.ADHosts.ToolRow">
+        <item name="android:layout_marginHorizontal">0dp</item>
+        <item name="android:paddingHorizontal">14dp</item>
+        <item name="android:paddingVertical">10dp</item>
+    </style>
+
+    <style name="Widget.ADHosts.FunctionHeader" parent="">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:orientation">horizontal</item>
+        <item name="android:paddingHorizontal">16dp</item>
+        <item name="android:paddingTop">8dp</item>
+        <item name="android:paddingBottom">16dp</item>
+    </style>
+
+    <style name="Widget.ADHosts.FunctionBackButton" parent="">
+        <item name="android:layout_width">36dp</item>
+        <item name="android:layout_height">36dp</item>
+        <item name="android:background">@drawable/circle_back_btn_bg</item>
+        <item name="android:clickable">true</item>
+        <item name="android:focusable">true</item>
+        <item name="android:foreground">?attr/selectableItemBackgroundBorderless</item>
+    </style>
+
+    <style name="Widget.ADHosts.ToolRow" parent="">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginHorizontal">@dimen/app_page_horizontal_margin</item>
+        <item name="android:background">@drawable/tool_row_bg</item>
+        <item name="android:clickable">true</item>
+        <item name="android:focusable">true</item>
+        <item name="android:foreground">?attr/selectableItemBackground</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:orientation">horizontal</item>
+        <item name="android:paddingHorizontal">18dp</item>
+        <item name="android:paddingVertical">12dp</item>
+    </style>
+
+    <style name="Widget.ADHosts.ToolRow.Spaced" parent="Widget.ADHosts.ToolRow">
+        <item name="android:layout_marginBottom">8dp</item>
+    </style>
+
+    <style name="Widget.ADHosts.ToolSectionHeader" parent="">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">20dp</item>
+        <item name="android:layout_marginBottom">8dp</item>
+        <item name="android:paddingHorizontal">16dp</item>
+        <item name="android:textColor">@color/md_theme_onSurfaceVariant</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:textAllCaps">true</item>
+        <item name="android:letterSpacing">0.05</item>
+    </style>
+
+    <style name="Widget.ADHosts.ToolIconContainer" parent="">
+        <item name="android:layout_width">44dp</item>
+        <item name="android:layout_height">44dp</item>
+        <item name="android:background">@drawable/md3_icon_container_bg</item>
+    </style>
+
+    <style name="Widget.ADHosts.ToolIcon" parent="">
+        <item name="android:layout_width">24dp</item>
+        <item name="android:layout_height">24dp</item>
+        <item name="android:layout_gravity">center</item>
+    </style>
+
+    <style name="Widget.ADHosts.ToolTextGroup" parent="">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:layout_marginStart">14dp</item>
+        <item name="android:orientation">vertical</item>
+    </style>
+
+    <style name="Widget.ADHosts.Tag.Root" parent="">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:background">@drawable/root_badge_bg</item>
+        <item name="android:paddingHorizontal">8dp</item>
+        <item name="android:paddingVertical">3dp</item>
+        <item name="android:textColor">#FFF4D88B</item>
+        <item name="android:textSize">11sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="Widget.ADHosts.Tag.Sensor" parent="">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:background">@drawable/sensor_badge_bg</item>
+        <item name="android:paddingHorizontal">8dp</item>
+        <item name="android:paddingVertical">3dp</item>
+        <item name="android:textColor">#FFD3D1FF</item>
+        <item name="android:textSize">11sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="Widget.ADHosts.RowChevron.Small" parent="">
+        <item name="android:layout_width">16dp</item>
+        <item name="android:layout_height">16dp</item>
+        <item name="android:layout_marginStart">8dp</item>
+        <item name="android:tint">@color/md_theme_onSurfaceVariant</item>
+    </style>
+
+    <style name="Widget.ADHosts.SubscriptionCard" parent="Widget.ADHosts.Card">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">6dp</item>
+        <item name="android:layout_marginBottom">6dp</item>
+        <item name="cardCornerRadius">22dp</item>
+    </style>
+
+    <style name="Widget.ADHosts.SubscriptionDeleteCard" parent="Widget.ADHosts.SubscriptionCard">
+        <item name="android:layout_width">76dp</item>
+        <item name="android:layout_height">72dp</item>
+        <item name="android:layout_marginEnd">16dp</item>
+        <item name="cardBackgroundColor">#80A12D34</item>
+        <item name="strokeColor">#66FF8A80</item>
+        <item name="strokeWidth">1dp</item>
+    </style>
+
+    <style name="Widget.ADHosts.SubscriptionDeleteText" parent="">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">match_parent</item>
+        <item name="android:background">?attr/selectableItemBackground</item>
+        <item name="android:clickable">true</item>
+        <item name="android:focusable">true</item>
+        <item name="android:gravity">center</item>
+        <item name="android:minHeight">72dp</item>
+        <item name="android:textColor">#FFFFE1DD</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="Widget.ADHosts.SubscriptionRow" parent="">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:minHeight">68dp</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:orientation">horizontal</item>
+        <item name="android:padding">12dp</item>
+    </style>
+
+    <style name="Widget.ADHosts.SubscriptionChevron" parent="Widget.ADHosts.RowChevron.Small">
+        <item name="android:alpha">0.65</item>
+        <item name="android:rotation">90</item>
+    </style>
+
+    <style name="Widget.ADHosts.PillButton" parent="Widget.Material3.Button">
+        <item name="android:minWidth">0dp</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="android:insetLeft">0dp</item>
+        <item name="android:insetRight">0dp</item>
+        <item name="android:ellipsize">end</item>
+        <item name="android:gravity">center</item>
+        <item name="android:maxLines">1</item>
+        <item name="android:textStyle">bold</item>
+        <item name="iconGravity">textStart</item>
+        <item name="strokeWidth">1dp</item>
+    </style>
+
+    <style name="Widget.ADHosts.PillButton.Action" parent="Widget.ADHosts.PillButton">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">52dp</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:minHeight">52dp</item>
+        <item name="android:paddingStart">10dp</item>
+        <item name="android:paddingEnd">10dp</item>
+        <item name="android:textSize">13sp</item>
+        <item name="cornerRadius">26dp</item>
+        <item name="iconPadding">5dp</item>
+        <item name="iconSize">16dp</item>
+    </style>
+
+    <style name="Widget.ADHosts.PillButton.Compact" parent="Widget.ADHosts.PillButton">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">36dp</item>
+        <item name="android:minHeight">36dp</item>
+        <item name="android:paddingStart">12dp</item>
+        <item name="android:paddingEnd">14dp</item>
+        <item name="android:textSize">13sp</item>
+        <item name="cornerRadius">18dp</item>
+        <item name="iconPadding">4dp</item>
+        <item name="iconSize">14dp</item>
+    </style>
+
+    <style name="Widget.ADHosts.PillButton.FullWidth" parent="Widget.ADHosts.PillButton">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">52dp</item>
+        <item name="android:minHeight">52dp</item>
+        <item name="android:paddingStart">16dp</item>
+        <item name="android:paddingEnd">16dp</item>
+        <item name="android:textSize">16sp</item>
+        <item name="cornerRadius">26dp</item>
+        <item name="iconPadding">8dp</item>
+        <item name="iconSize">18dp</item>
+    </style>
+
+    <style name="Widget.ADHosts.PillButton.Success" parent="Widget.ADHosts.PillButton.Action">
+        <item name="android:textColor">#FFF0EFFF</item>
+        <item name="backgroundTint">#80563B8A</item>
+        <item name="iconTint">#FFF0EFFF</item>
+        <item name="strokeColor">#668E7CFF</item>
+    </style>
+
+    <style name="Widget.ADHosts.PillButton.Danger" parent="Widget.ADHosts.PillButton.Action">
+        <item name="android:textColor">#FFFFE1DD</item>
+        <item name="backgroundTint">#80A12D34</item>
+        <item name="iconTint">#FFFFE1DD</item>
+        <item name="strokeColor">#66FF8A80</item>
+    </style>
+
+    <style name="Widget.ADHosts.PillButton.Neutral" parent="Widget.ADHosts.PillButton.Action">
+        <item name="android:textColor">#FFF1EEFF</item>
+        <item name="backgroundTint">#80454559</item>
+        <item name="iconTint">#FFF1EEFF</item>
+        <item name="strokeColor">#66C9C4FF</item>
+    </style>
+
+    <style name="Widget.ADHosts.PillButton.Neutral.Compact" parent="Widget.ADHosts.PillButton.Compact">
+        <item name="android:textColor">#FFF1EEFF</item>
+        <item name="backgroundTint">#80454559</item>
+        <item name="iconTint">#FFF1EEFF</item>
+        <item name="strokeColor">#66C9C4FF</item>
+    </style>
+
+    <style name="Widget.ADHosts.PillButton.Neutral.FullWidth" parent="Widget.ADHosts.PillButton.FullWidth">
+        <item name="android:textColor">#FFF1EEFF</item>
+        <item name="backgroundTint">#80454559</item>
+        <item name="iconTint">#FFF1EEFF</item>
+        <item name="strokeColor">#66C9C4FF</item>
+    </style>
+
+    <style name="Widget.ADHosts.PillButton.Success.Compact" parent="Widget.ADHosts.PillButton.Compact">
+        <item name="android:textColor">#FFF0EFFF</item>
+        <item name="backgroundTint">#80563B8A</item>
+        <item name="iconTint">#FFF0EFFF</item>
+        <item name="strokeColor">#668E7CFF</item>
+    </style>
+
+    <!-- Recommendation-specific actions: richer hierarchy without competing with the main controls. -->
+    <style name="Widget.ADHosts.PillButton.Recommended.Compact" parent="Widget.ADHosts.PillButton.Compact">
+        <item name="android:textColor">#FFF0EEFF</item>
+        <item name="backgroundTint">#8A424878</item>
+        <item name="iconTint">#FFD6D8FF</item>
+        <item name="strokeColor">#997E88DE</item>
+    </style>
+
+    <style name="Widget.ADHosts.PillButton.Website.Compact" parent="Widget.ADHosts.PillButton.Compact">
+        <item name="android:textColor">#FFD6DAED</item>
+        <item name="backgroundTint">#332B3146</item>
+        <item name="iconTint">#FFB9C9F5</item>
+        <item name="strokeColor">#665E6F9E</item>
+    </style>
+
+    <style name="Widget.ADHosts.PillButton.Add.Compact" parent="Widget.ADHosts.PillButton.Compact">
+        <item name="android:textColor">#FFF0FFF5</item>
+        <item name="backgroundTint">#A83C765F</item>
+        <item name="iconTint">#FFBDF5D0</item>
+        <item name="strokeColor">#A366C998</item>
+    </style>
+
+    <style name="Widget.ADHosts.PillButton.TextCompact" parent="Widget.ADHosts.PillButton.Compact">
+        <item name="android:textColor">@color/md_theme_onSurfaceVariant</item>
+        <item name="backgroundTint">#40FFFFFF</item>
+        <item name="iconTint">@color/md_theme_onSurfaceVariant</item>
+        <item name="strokeColor">#33FFFFFF</item>
+    </style>
+
+    <style name="Widget.ADHosts.CrashCard" parent="Widget.Material3.CardView.Outlined">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="cardBackgroundColor">#D91C1D24</item>
+        <item name="cardCornerRadius">20dp</item>
+        <item name="cardElevation">0dp</item>
+        <item name="strokeColor">#FF3E404B</item>
+        <item name="strokeWidth">1dp</item>
+    </style>
+
+    <style name="Widget.ADHosts.CrashCard.Error" parent="Widget.ADHosts.CrashCard">
+        <item name="cardBackgroundColor">#E0241C20</item>
+        <item name="strokeColor">#FF684044</item>
+    </style>
+
+    <style name="Widget.ADHosts.CrashCodeCard" parent="Widget.ADHosts.CrashCard">
+        <item name="cardBackgroundColor">#FF111217</item>
+        <item name="strokeColor">#FF33353E</item>
+        <item name="cardCornerRadius">16dp</item>
+    </style>
+
+    <style name="TextAppearance.ADHosts.CrashSectionTitle" parent="">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textColor">#FFF3EDF7</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="TextAppearance.ADHosts.CrashInfoLabel" parent="">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textColor">#FF948F99</item>
+        <item name="android:textSize">11sp</item>
+        <item name="android:textAllCaps">true</item>
+        <item name="android:letterSpacing">0.06</item>
+    </style>
+
+    <style name="TextAppearance.ADHosts.CrashInfoValue" parent="">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">2dp</item>
+        <item name="android:textColor">#FFE6E0E9</item>
+        <item name="android:textSize">14sp</item>
+    </style>
+
+    <style name="Widget.ADHosts.CrashDetailsButton" parent="Widget.Material3.Button.TextButton">
+        <item name="android:textColor">#FFBDC7FF</item>
+        <item name="backgroundTint">#191B2030</item>
+        <item name="cornerRadius">16dp</item>
+        <item name="iconGravity">textEnd</item>
+        <item name="iconPadding">8dp</item>
+        <item name="iconTint">#FFBDC7FF</item>
+    </style>
+
+    <style name="Widget.ADHosts.CrashButton" parent="Widget.ADHosts.PillButton">
+        <item name="android:minWidth">0dp</item>
+        <item name="android:minHeight">52dp</item>
+        <item name="android:paddingStart">10dp</item>
+        <item name="android:paddingEnd">10dp</item>
+        <item name="android:textSize">13sp</item>
+        <item name="cornerRadius">18dp</item>
+        <item name="iconPadding">6dp</item>
+        <item name="iconSize">18dp</item>
+        <item name="strokeWidth">1dp</item>
+    </style>
+
+    <style name="Widget.ADHosts.CrashButton.Primary" parent="Widget.ADHosts.CrashButton">
+        <item name="android:textColor">#FF17214C</item>
+        <item name="backgroundTint">#FFBDC7FF</item>
+        <item name="iconTint">#FF17214C</item>
+        <item name="strokeColor">#FFBDC7FF</item>
+    </style>
+
+    <style name="Widget.ADHosts.CrashButton.Secondary" parent="Widget.ADHosts.CrashButton">
+        <item name="android:textColor">#FFE0E4FF</item>
+        <item name="backgroundTint">#FF272936</item>
+        <item name="iconTint">#FFBDC7FF</item>
+        <item name="strokeColor">#FF4B4E60</item>
+    </style>
+
+    <style name="Widget.ADHosts.CrashButton.Danger" parent="Widget.ADHosts.CrashButton">
+        <item name="android:textColor">#FFFFDAD6</item>
+        <item name="backgroundTint">#FF442527</item>
+        <item name="iconTint">#FFFFB4AB</item>
+        <item name="strokeColor">#FF704448</item>
+    </style>
+
+</resources>

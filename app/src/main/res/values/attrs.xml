@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <attr name="mainBackgroundScrimColor" format="color" />
+    <attr name="appCardBackgroundColor" format="color" />
+    <attr name="appCardHighBackgroundColor" format="color" />
+    <attr name="appCardStrokeColor" format="color" />
+    <attr name="appIconContainerBackgroundColor" format="color" />
+    <attr name="appSelectedNavPillColor" format="color" />
+    <attr name="appNavGlassBackgroundColor" format="color" />
+    <attr name="appStatusEnabledBackgroundColor" format="color" />
+    <attr name="appStatusDisabledBackgroundColor" format="color" />
+    <attr name="appStatusPendingBackgroundColor" format="color" />
+    <attr name="appStatusCheckingBackgroundColor" format="color" />
+</resources>

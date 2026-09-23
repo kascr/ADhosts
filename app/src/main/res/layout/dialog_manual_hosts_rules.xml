@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="20dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <FrameLayout style="@style/Widget.ADHosts.ToolIconContainer">
+
+            <ImageView
+                style="@style/Widget.ADHosts.ToolIcon"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_wrench"
+                app:tint="@color/md_theme_primary" />
+        </FrameLayout>
+
+        <LinearLayout style="@style/Widget.ADHosts.ToolTextGroup">
+
+            <TextView
+                style="@style/TextAppearance.ADHosts.DialogTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/manual_hosts_rules" />
+
+            <TextView
+                style="@style/TextAppearance.ADHosts.DialogSubtitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/manual_hosts_editor_summary" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <com.google.android.material.textfield.TextInputLayout
+        style="@style/Widget.ADHosts.TextInputLayout"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        app:boxStrokeWidth="1.5dp">
+
+        <com.google.android.material.textfield.TextInputEditText
+            android:id="@+id/manualRulesEditText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="top|start"
+            android:hint="@string/manual_hosts_input_hint"
+            android:inputType="textMultiLine|textNoSuggestions"
+            android:maxLines="10"
+            android:minLines="6"
+            android:padding="14dp"
+            android:scrollbars="vertical"
+            android:textColor="@color/md_theme_onSurface"
+            android:textColorHint="@color/md_theme_onSurfaceVariant"
+            android:textSize="14sp" />
+    </com.google.android.material.textfield.TextInputLayout>
+
+    <com.google.android.material.textview.MaterialTextView
+        style="@style/TextAppearance.ADHosts.DialogSubtitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:layout_marginBottom="24dp"
+        android:drawablePadding="6dp"
+        android:gravity="center_vertical"
+        android:text="@string/manual_hosts_input_tip"
+        app:drawableStartCompat="@drawable/ic_network_hint"
+        app:drawableTint="@color/md_theme_onSurfaceVariant" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="end"
+        android:orientation="horizontal">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnCancel"
+            style="@style/Widget.ADHosts.PillButton.TextCompact"
+            android:layout_marginEnd="8dp"
+            android:text="@string/cancel"
+            app:icon="@drawable/ic_close_circle" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnConfirm"
+            style="@style/Widget.ADHosts.PillButton.Success.Compact"
+            android:text="@string/save"
+            app:icon="@drawable/ic_check_circle" />
+    </LinearLayout>
+
+</LinearLayout>
