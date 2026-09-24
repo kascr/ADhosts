@@ -3,7 +3,6 @@ package com.kascr.adhosts.ui.fragment
 import android.app.Activity
 import android.Manifest
 import android.content.Intent
-import android.content.pm.ApplicationInfo
 import android.net.Uri
 import android.os.Bundle
 import android.os.Build
@@ -344,10 +343,6 @@ class SettingsFragment : BaseFragment<FragmentSettingsBinding>(R.layout.fragment
     }
 
     private fun initCrashTestTrigger() {
-        val context = context ?: return
-        val isDebuggable = context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE != 0
-        if (!isDebuggable) return
-
         binding.versionText.setOnClickListener { handleCrashTestTap() }
     }
 

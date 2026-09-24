@@ -33,6 +33,7 @@ import com.topjohnwu.superuser.Shell
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
@@ -95,6 +96,18 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
         refreshPendingPreview()
         binding.restorePreviousButton.isEnabled = HostsUpdateManager.hasPrevious(requireContext())
         updateStatusUI()
+        if (HostsOperationLock.mutex.isLocked) {
+            setHostsActionsEnabled(false)
+            viewLifecycleOwner.lifecycleScope.launch {
+                HostsOperationLock.mutex.withLock { }
+                if (bindingOrNull == null) return@launch
+                setHostsActionsEnabled(true)
+                loadSubscriptions()
+                refreshManualRulesSummary()
+                refreshPendingPreview()
+                updateStatusUI()
+            }
+        }
     }
 
     private fun initDnsConfiguration() {
@@ -217,7 +230,7 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
                 .filter { it.enabled }
             val hasManualRules = ManualHostsRuleManager.getRules(appContext).isNotEmpty()
             if (enabledSources.isEmpty() && !hasManualRules) {
-                if (!restoreDefaultHostsLocked(showFeedback = false)) {
+                if (!restoreDefaultHostsLocked(appContext, showFeedback = false)) {
                     throw IOException(getString(R.string.exec_failed))
                 }
             } else {
@@ -232,6 +245,7 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
                     refreshRemote = false
                 )
                 if (ruleCount == 0 || !applyMergedHostsInternal(
+                        appContext,
                         mergedFile.absolutePath,
                         showFeedback = false,
                         applyDns = false
@@ -251,6 +265,7 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
                 if (wasApplied && removed.enabled && cacheRestored && previousMergedSnapshot != null) {
                     try {
                         applyMergedHostsInternal(
+                            appContext,
                             mergedFile.absolutePath,
                             showFeedback = false,
                             applyDns = false
@@ -311,7 +326,7 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
             val hasManualRules = ManualHostsRuleManager.getRules(appContext).isNotEmpty()
             if (enabledSources.isEmpty() && !hasManualRules) {
                 HostsSubscriptionManager.clearMergedHostsCache(appContext)
-                if (wasApplied && !restoreDefaultHostsLocked(showFeedback = false)) {
+                if (wasApplied && !restoreDefaultHostsLocked(appContext, showFeedback = false)) {
                     throw IOException(getString(R.string.exec_failed))
                 }
             } else {
@@ -335,6 +350,7 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
                     throw IOException(getString(R.string.subscription_not_downloaded))
                 }
                 if (!applyMergedHostsInternal(
+                        appContext,
                         mergedFile.absolutePath,
                         showFeedback = false,
                         applyDns = false
@@ -358,6 +374,7 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
                 if (wasApplied && cacheRestored && previousMergedSnapshot != null) {
                     try {
                         applyMergedHostsInternal(
+                            appContext,
                             mergedFile.absolutePath,
                             showFeedback = false,
                             applyDns = false
@@ -486,38 +503,29 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
                 return@operation
             }
 
-            applyMergedHostsInternal(sourceFile.absolutePath)
+            applyMergedHostsInternal(appContext, sourceFile.absolutePath)
         }
     }
 
     private suspend fun applyMergedHostsInternal(
+        appContext: Context,
         sourcePath: String,
         showFeedback: Boolean = true,
         applyDns: Boolean = true,
         recordSnapshot: Boolean = true
     ): Boolean {
-        val commands = mutableListOf(
-            "dd if=\"$sourcePath\" of=\"$systemHostsPath\" && chmod 644 \"$systemHostsPath\""
-        )
-
-        if (hasMetaModuleHosts()) {
-            commands.add(
-                "dd if=\"$sourcePath\" of=\"$metaModuleHostsPath\" && chmod 644 \"$metaModuleHostsPath\""
-            )
+        val written = writeModuleHosts(sourcePath)
+        if (written && recordSnapshot) {
+            runCatching { HostsUpdateManager.recordApplied(appContext, File(sourcePath)) }
         }
-
-        val result = Shell.cmd(commands.joinToString(" && ")).exec()
-        if (result.isSuccess && recordSnapshot) {
-            runCatching { HostsUpdateManager.recordApplied(requireContext().applicationContext, File(sourcePath)) }
-        }
-        val dnsApplied = if (result.isSuccess && applyDns) {
+        val dnsApplied = if (written && applyDns) {
             currentDnsOption?.let(::applyDnsToSystem) ?: true
-        } else result.isSuccess
+        } else written
 
-        val status = if (result.isSuccess) detectHostsStatus() else HostsStatus.Disabled
+        val status = if (written) detectHostsStatus() else HostsStatus.Disabled
         withContext(Dispatchers.Main) ui@{
             if (bindingOrNull == null) return@ui
-            if (result.isSuccess) {
+            if (written) {
                 renderHostsStatus(status)
                 if (showFeedback && dnsApplied) {
                     showToast(getHostsEnabledToast(status), long = true)
@@ -528,32 +536,94 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
                 showToast(R.string.hosts_operation_failed_root_module, long = true)
             }
         }
-        return result.isSuccess
+        return written
+    }
+
+    private fun writeModuleHosts(sourcePath: String): Boolean {
+        val secondaryPath = if (hasMetaModuleHosts()) metaModuleHostsPath else ""
+        // Stage each file beside its destination so mv replaces it on the same filesystem.
+        // The first destination is restored if replacing the second one fails.
+        val script = """
+            source=${shellQuote(sourcePath)}
+            primary=${shellQuote(systemHostsPath)}
+            secondary=${shellQuote(secondaryPath)}
+            primary_stage=
+            secondary_stage=
+            primary_backup=
+            secondary_backup=
+            primary_changed=0
+            secondary_changed=0
+            finish() {
+                result=${'$'}?
+                trap - EXIT HUP INT TERM
+                if [ "${'$'}result" -ne 0 ] && [ "${'$'}secondary_changed" -eq 1 ]; then
+                    mv -f "${'$'}secondary_backup" "${'$'}secondary" || result=1
+                fi
+                if [ "${'$'}result" -ne 0 ] && [ "${'$'}primary_changed" -eq 1 ]; then
+                    mv -f "${'$'}primary_backup" "${'$'}primary" || result=1
+                fi
+                [ -z "${'$'}primary_stage" ] || rm -f "${'$'}primary_stage"
+                [ -z "${'$'}secondary_stage" ] || rm -f "${'$'}secondary_stage"
+                [ -z "${'$'}primary_backup" ] || rm -f "${'$'}primary_backup"
+                [ -z "${'$'}secondary_backup" ] || rm -f "${'$'}secondary_backup"
+                exit "${'$'}result"
+            }
+            trap finish EXIT
+            trap 'exit 1' HUP INT TERM
+            [ -f "${'$'}source" ] && [ -f "${'$'}primary" ] || exit 1
+            primary_stage=${'$'}(mktemp "${'$'}primary.new.XXXXXX") || exit 1
+            primary_backup=${'$'}(mktemp "${'$'}primary.old.XXXXXX") || exit 1
+            cp -p "${'$'}primary" "${'$'}primary_backup" || exit 1
+            cp "${'$'}source" "${'$'}primary_stage" && chmod 644 "${'$'}primary_stage" || exit 1
+            if [ -n "${'$'}secondary" ]; then
+                [ -f "${'$'}secondary" ] || exit 1
+                secondary_stage=${'$'}(mktemp "${'$'}secondary.new.XXXXXX") || exit 1
+                secondary_backup=${'$'}(mktemp "${'$'}secondary.old.XXXXXX") || exit 1
+                cp -p "${'$'}secondary" "${'$'}secondary_backup" || exit 1
+                cp "${'$'}source" "${'$'}secondary_stage" && chmod 644 "${'$'}secondary_stage" || exit 1
+            fi
+            primary_changed=1
+            mv -f "${'$'}primary_stage" "${'$'}primary" || exit 1
+            primary_stage=
+            if [ -n "${'$'}secondary" ]; then
+                secondary_changed=1
+                mv -f "${'$'}secondary_stage" "${'$'}secondary" || exit 1
+                secondary_stage=
+            fi
+            cmp -s "${'$'}source" "${'$'}primary" || exit 1
+            if [ -n "${'$'}secondary" ]; then
+                cmp -s "${'$'}source" "${'$'}secondary" || exit 1
+            fi
+            primary_changed=0
+            secondary_changed=0
+        """.trimIndent()
+        return Shell.cmd("sh -c ${shellQuote(script)}").exec().isSuccess
     }
 
     private fun restoreDefaultHosts() {
-        runHostsOperation {
-            restoreDefaultHostsLocked()
+        runHostsOperation { appContext ->
+            restoreDefaultHostsLocked(appContext)
         }
     }
 
-    private suspend fun restoreDefaultHostsLocked(showFeedback: Boolean = true): Boolean {
+    private suspend fun restoreDefaultHostsLocked(
+        appContext: Context,
+        showFeedback: Boolean = true
+    ): Boolean {
         return withContext(Dispatchers.IO) {
-            val commands = mutableListOf(
-                "printf '%s' \"$DEFAULT_HOSTS_CONTENT\" > \"$systemHostsPath\" && chmod 644 \"$systemHostsPath\""
-            )
-
-            if (hasMetaModuleHosts()) {
-                commands += "printf '%s' \"$DEFAULT_HOSTS_CONTENT\" > \"$metaModuleHostsPath\" && chmod 644 \"$metaModuleHostsPath\""
+            val defaultFile = File.createTempFile("default_hosts_", ".txt", appContext.cacheDir)
+            val written = try {
+                defaultFile.writeText(DEFAULT_HOSTS_CONTENT, Charsets.UTF_8)
+                writeModuleHosts(defaultFile.absolutePath)
+            } finally {
+                defaultFile.delete()
             }
+            val dnsRestored = written && applyDnsToSystem(defaultDnsOption)
 
-            val result = Shell.cmd(commands.joinToString(" && ")).exec()
-            val dnsRestored = result.isSuccess && applyDnsToSystem(defaultDnsOption)
-
-            val status = if (result.isSuccess) detectHostsStatus() else HostsStatus.Disabled
+            val status = if (written) detectHostsStatus() else HostsStatus.Disabled
             withContext(Dispatchers.Main) ui@{
                 if (bindingOrNull == null) return@ui
-                if (result.isSuccess) {
+                if (written) {
                     renderHostsStatus(status)
                     if (showFeedback && dnsRestored) {
                         showToast(getHostsDisabledToast(status), long = true)
@@ -564,7 +634,7 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
                     showToast(R.string.operation_failed)
                 }
             }
-            result.isSuccess
+            written
         }
     }
 
@@ -809,7 +879,7 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
                     }
                     val oldApplied = currentSnapshot.takeIf(File::isFile)
                         ?: oldMergedFile.takeIf { matchesCurrentModule }
-                    if (wasApplied && !applyMergedHostsInternal(candidate.absolutePath,
+                    if (wasApplied && !applyMergedHostsInternal(appContext, candidate.absolutePath,
                             showFeedback = false, applyDns = false, recordSnapshot = false)) {
                         throw IOException(getString(R.string.exec_failed))
                     }
@@ -821,7 +891,7 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
                         }.isSuccess
                     } catch (error: Exception) {
                         if (wasApplied && oldApplied?.isFile == true) {
-                            applyMergedHostsInternal(oldApplied.absolutePath,
+                            applyMergedHostsInternal(appContext, oldApplied.absolutePath,
                                 showFeedback = false, applyDns = false, recordSnapshot = false)
                         }
                         throw error
@@ -910,7 +980,7 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
                     val oldManual = ManualHostsRuleManager.getRules(appContext)
                     val oldApplied = File(File(appContext.filesDir, "last_applied_hosts"), "ADhosts")
                     val oldMerged = HostsSubscriptionManager.createMergedHostsSnapshot(appContext)
-                    if (!applyMergedHostsInternal(previous.absolutePath, false, false, false)) {
+                    if (!applyMergedHostsInternal(appContext, previous.absolutePath, false, false, false)) {
                         oldMerged?.delete()
                         throw IOException(getString(R.string.exec_failed))
                     }
@@ -921,7 +991,7 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
                         runCatching { HostsSubscriptionManager.saveSubscriptions(appContext, oldSubscriptions) }
                         runCatching { ManualHostsRuleManager.saveRules(appContext, oldManual) }
                         runCatching { HostsSubscriptionManager.restoreMergedHostsCache(appContext, oldMerged) }
-                        if (oldApplied.isFile) applyMergedHostsInternal(oldApplied.absolutePath, false, false, false)
+                        if (oldApplied.isFile) applyMergedHostsInternal(appContext, oldApplied.absolutePath, false, false, false)
                         throw error
                     } finally {
                         oldMerged?.delete()
@@ -954,7 +1024,8 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
 
         val appContext = requireContext().applicationContext
         setHostsActionsEnabled(false)
-        viewLifecycleOwner.lifecycleScope.launch {
+        // Keep the mutation alive through a view teardown so its commit/rollback can finish.
+        HostsOperationLock.scope.launch {
             try {
                 operation(appContext)
             } catch (error: CancellationException) {
@@ -1294,9 +1365,10 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
                 refreshRemote = false
             )
             val applied = if (ruleCount == 0) {
-                restoreDefaultHostsLocked(showFeedback = false)
+                restoreDefaultHostsLocked(appContext, showFeedback = false)
             } else {
                 applyMergedHostsInternal(
+                    appContext,
                     mergedHostsFile(appContext).absolutePath,
                     showFeedback = false,
                     applyDns = false
@@ -1315,6 +1387,7 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
                 if (wasApplied && cacheRestored && previousMergedSnapshot != null) {
                     try {
                         applyMergedHostsInternal(
+                            appContext,
                             mergedHostsFile(appContext).absolutePath,
                             showFeedback = false,
                             applyDns = false
