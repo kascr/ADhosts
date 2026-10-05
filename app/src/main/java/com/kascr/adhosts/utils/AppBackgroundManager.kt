@@ -19,6 +19,8 @@ object AppBackgroundManager {
     private const val KEY_WALLPAPER_MODE = "wallpaper_mode"
     private const val LEGACY_DEFAULT_BACKGROUND_FILE_NAME = "default_background_image"
     private const val MAX_CUSTOM_BACKGROUND_BYTES = 25L * 1024 * 1024
+    internal const val MAX_DECODED_PIXELS = 8L * 1024 * 1024
+    internal const val MAX_DECODED_DIMENSION = 4096
     private val nightSkyBackgroundResId = R.drawable.default_app_background
     private val mikuBackgroundResId = R.drawable.miku_wallpaper
 
@@ -63,11 +65,13 @@ object AppBackgroundManager {
                 }
             }
 
-            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            BitmapFactory.decodeFile(temp.absolutePath, bounds)
-            if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
-                throw IOException("Invalid image file")
-            }
+            val metrics = context.resources.displayMetrics
+            val preview = decodeBitmapFromFile(
+                temp,
+                metrics.widthPixels.coerceAtLeast(1),
+                metrics.heightPixels.coerceAtLeast(1)
+            ) ?: throw IOException("Unable to decode selected image")
+            preview.recycle()
 
             moveReplacing(temp, target)
             setWallpaperMode(context, WallpaperMode.CUSTOM)
@@ -87,15 +91,13 @@ object AppBackgroundManager {
     fun decodeBackgroundBitmap(context: Context, reqWidth: Int, reqHeight: Int): Bitmap? {
         val safeWidth = reqWidth.coerceAtLeast(1)
         val safeHeight = reqHeight.coerceAtLeast(1)
-        return when (getWallpaperMode(context)) {
+        val selectedMode = getWallpaperMode(context)
+        val bitmap = when (selectedMode) {
             WallpaperMode.CUSTOM -> {
                 val file = backgroundFile(context)
                 if (file.exists()) {
                     decodeBitmapFromFile(file, safeWidth, safeHeight)
-                } else {
-                    setWallpaperMode(context, WallpaperMode.NIGHT_SKY)
-                    decodeBitmapFromResource(context, nightSkyBackgroundResId, safeWidth, safeHeight)
-                }
+                } else null
             }
 
             WallpaperMode.NIGHT_SKY -> {
@@ -106,18 +108,27 @@ object AppBackgroundManager {
                 decodeBitmapFromResource(context, mikuBackgroundResId, safeWidth, safeHeight)
             }
         }
+        if (bitmap != null || selectedMode == WallpaperMode.NIGHT_SKY) return bitmap
+
+        // Keep the original custom file, but do not retry a failed decoder on every launch.
+        setWallpaperMode(context, WallpaperMode.NIGHT_SKY)
+        return decodeBitmapFromResource(context, nightSkyBackgroundResId, safeWidth, safeHeight)
     }
 
-    private fun decodeBitmapFromFile(file: File, reqWidth: Int, reqHeight: Int): Bitmap? {
-        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    private fun decodeBitmapFromFile(file: File, reqWidth: Int, reqHeight: Int): Bitmap? = safelyDecode {
+        val bounds = BitmapFactory.Options().apply {
+            inJustDecodeBounds = true
+            inScaled = false
+        }
         BitmapFactory.decodeFile(file.absolutePath, bounds)
-        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return@safelyDecode null
 
         val options = BitmapFactory.Options().apply {
             inSampleSize = calculateInSampleSize(bounds.outWidth, bounds.outHeight, reqWidth, reqHeight)
             inPreferredConfig = Bitmap.Config.ARGB_8888
+            inScaled = false
         }
-        return BitmapFactory.decodeFile(file.absolutePath, options)
+        BitmapFactory.decodeFile(file.absolutePath, options)
     }
 
     private fun decodeBitmapFromResource(
@@ -125,31 +136,60 @@ object AppBackgroundManager {
         resId: Int,
         reqWidth: Int,
         reqHeight: Int
-    ): Bitmap? {
-        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    ): Bitmap? = safelyDecode {
+        val bounds = BitmapFactory.Options().apply {
+            inJustDecodeBounds = true
+            inScaled = false
+        }
         BitmapFactory.decodeResource(context.resources, resId, bounds)
-        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return@safelyDecode null
 
         val options = BitmapFactory.Options().apply {
             inSampleSize = calculateInSampleSize(bounds.outWidth, bounds.outHeight, reqWidth, reqHeight)
             inPreferredConfig = Bitmap.Config.ARGB_8888
+            inScaled = false
         }
-        return BitmapFactory.decodeResource(context.resources, resId, options)
+        BitmapFactory.decodeResource(context.resources, resId, options)
     }
 
-    private fun calculateInSampleSize(
+    private inline fun safelyDecode(decode: () -> Bitmap?): Bitmap? {
+        return try {
+            decode()?.takeUnless { bitmap ->
+                val oversized = bitmap.width > MAX_DECODED_DIMENSION ||
+                    bitmap.height > MAX_DECODED_DIMENSION ||
+                    bitmap.width.toLong() * bitmap.height > MAX_DECODED_PIXELS
+                if (oversized) bitmap.recycle()
+                oversized
+            }
+        } catch (_: OutOfMemoryError) {
+            null
+        } catch (_: RuntimeException) {
+            null
+        }
+    }
+
+    internal fun calculateInSampleSize(
         width: Int,
         height: Int,
         reqWidth: Int,
         reqHeight: Int
     ): Int {
         var inSampleSize = 1
-        var currentWidth = width
-        var currentHeight = height
+        val safeWidth = width.coerceAtLeast(1).toLong()
+        val safeHeight = height.coerceAtLeast(1).toLong()
+        val targetWidth = reqWidth.coerceAtLeast(1)
+        val targetHeight = reqHeight.coerceAtLeast(1)
 
-        while (currentWidth / 2 >= reqWidth && currentHeight / 2 >= reqHeight) {
-            currentWidth /= 2
-            currentHeight /= 2
+        while (inSampleSize <= Int.MAX_VALUE / 2) {
+            // Round up: decoders can keep an extra edge pixel after subsampling.
+            val currentWidth = (safeWidth + inSampleSize - 1) / inSampleSize
+            val currentHeight = (safeHeight + inSampleSize - 1) / inSampleSize
+            val exceedsAllocation = currentWidth > MAX_DECODED_DIMENSION ||
+                currentHeight > MAX_DECODED_DIMENSION ||
+                currentWidth * currentHeight > MAX_DECODED_PIXELS
+            val largerThanTarget = currentWidth / 2 >= targetWidth &&
+                currentHeight / 2 >= targetHeight
+            if (!exceedsAllocation && !largerThanTarget) break
             inSampleSize *= 2
         }
         return inSampleSize.coerceAtLeast(1)

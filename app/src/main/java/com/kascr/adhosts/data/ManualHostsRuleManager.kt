@@ -1,8 +1,9 @@
 package com.kascr.adhosts.data
 
 import android.content.Context
+import java.io.ByteArrayOutputStream
 import java.io.File
-import java.net.IDN
+import java.io.IOException
 import java.nio.file.AtomicMoveNotSupportedException
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
@@ -25,13 +26,16 @@ object ManualHostsRuleManager {
 
     private const val FILE_NAME = "manual_hosts_rules.txt"
     private const val DEFAULT_BLOCK_ADDRESS = "0.0.0.0"
-    private const val MAX_RULES = 10_000
+    internal const val MAX_RULES = 10_000
+    // 10,000 maximum-length rules need about 3 MiB. Keep room for editing help and comments.
+    internal const val MAX_TEXT_BYTES = 4 * 1024 * 1024
     private val lock = Any()
 
     fun getRules(context: Context): List<ManualHostsRule> = synchronized(lock) {
+        HostsOperationJournal.ensureRecovered(context)
         val file = File(context.filesDir, FILE_NAME)
         if (!file.isFile) return@synchronized emptyList()
-        runCatching { parseEditorText(file.readText(Charsets.UTF_8)).rules }
+        runCatching { parseEditorText(readTextWithLimit(file)).rules }
             .getOrDefault(emptyList())
     }
 
@@ -39,14 +43,17 @@ object ManualHostsRuleManager {
         getRules(context).joinToString("\n", transform = ManualHostsRule::asHostsLine)
 
     fun saveRules(context: Context, rules: List<ManualHostsRule>) = synchronized(lock) {
+        require(rules.size <= MAX_RULES) { "Too many manual rules" }
+        val text = rules.joinToString("\n", transform = ManualHostsRule::asHostsLine)
+            .let { if (it.isEmpty()) it else "$it\n" }
+        val parsed = parseEditorText(text)
+        require(parsed.isValid && parsed.rules == rules) { "Invalid manual rules" }
+        val bytes = text.toByteArray(Charsets.UTF_8)
+        require(bytes.size <= MAX_TEXT_BYTES) { "Manual rules are too large" }
         val target = File(context.filesDir, FILE_NAME)
         val temporary = File.createTempFile("${target.name}.", ".tmp", target.parentFile)
         try {
-            temporary.bufferedWriter(Charsets.UTF_8).use { writer ->
-                rules.forEach { rule ->
-                    writer.appendLine(rule.asHostsLine())
-                }
-            }
+            temporary.writeBytes(bytes)
             try {
                 Files.move(
                     temporary.toPath(),
@@ -66,6 +73,20 @@ object ManualHostsRuleManager {
         }
     }
 
+    internal fun readTextWithLimit(file: File): String {
+        val output = ByteArrayOutputStream()
+        file.inputStream().use { input ->
+            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+            while (true) {
+                val read = input.read(buffer)
+                if (read < 0) break
+                if (output.size() + read > MAX_TEXT_BYTES) throw IOException("Manual rules are too large")
+                output.write(buffer, 0, read)
+            }
+        }
+        return output.toString(Charsets.UTF_8.name())
+    }
+
     internal fun parseEditorText(text: String): ManualRulesParseResult {
         val rules = mutableListOf<ManualHostsRule>()
         val invalidLines = linkedSetOf<Int>()
@@ -73,7 +94,7 @@ object ManualHostsRuleManager {
 
         text.lineSequence().forEachIndexed { index, originalLine ->
             val lineNumber = index + 1
-            val content = originalLine.substringBefore('#').trim()
+            val content = originalLine.removePrefix("\uFEFF").substringBefore('#').trim()
             if (content.isEmpty()) return@forEachIndexed
 
             val fields = content.split(WHITESPACE_REGEX).filter(String::isNotEmpty)
@@ -82,7 +103,7 @@ object ManualHostsRuleManager {
             if (fields.size == 1) {
                 address = DEFAULT_BLOCK_ADDRESS
                 hostFields = fields
-            } else if (isNumericIpAddress(fields.first())) {
+            } else if (HostsRuleValidator.isNumericIpAddress(fields.first())) {
                 address = fields.first()
                 hostFields = fields.drop(1)
             } else {
@@ -95,7 +116,7 @@ object ManualHostsRuleManager {
                 invalidLines += lineNumber
                 return@forEachIndexed
             }
-            if (normalizedHosts.any { it in seenHosts }) {
+            if (normalizedHosts.toSet().size != normalizedHosts.size || normalizedHosts.any { it in seenHosts }) {
                 invalidLines += lineNumber
                 return@forEachIndexed
             }
@@ -110,37 +131,9 @@ object ManualHostsRuleManager {
     }
 
     private fun normalizeHostname(value: String): String? {
-        val trimmed = value.trim().trimEnd('.').lowercase()
-        if (trimmed.isEmpty() || '*' in trimmed || trimmed in LOCAL_HOST_NAMES ||
-            isNumericIpAddress(trimmed)
-        ) return null
-        val ascii = runCatching { IDN.toASCII(trimmed, IDN.USE_STD3_ASCII_RULES) }.getOrNull()
-            ?: return null
-        if (ascii.length > 253 || !HOSTNAME_REGEX.matches(ascii)) return null
-        return ascii
-    }
-
-    private fun isNumericIpAddress(value: String): Boolean {
-        if (value.contains(':')) {
-            return value.count { it == ':' } >= 2 && IPV6_ADDRESS_REGEX.matches(value)
-        }
-        val octets = value.split('.')
-        return octets.size == 4 && octets.all { octet ->
-            octet.isNotEmpty() && octet.length <= 3 && octet.all(Char::isDigit) &&
-                octet.toIntOrNull()?.let { it in 0..255 } == true
-        }
+        val hostname = HostsRuleValidator.normalizeHostname(value.trim()) ?: return null
+        return hostname.takeUnless(HostsRuleValidator::isLocalHostname)
     }
 
     private val WHITESPACE_REGEX = "\\s+".toRegex()
-    private val IPV6_ADDRESS_REGEX = "[0-9a-fA-F:.]+".toRegex()
-    private val HOSTNAME_REGEX = Regex(
-        "(?=.{1,253}${'$'})(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)*" +
-            "[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?"
-    )
-    private val LOCAL_HOST_NAMES = setOf(
-        "localhost",
-        "localhost.localdomain",
-        "ip6-localhost",
-        "ip6-loopback"
-    )
 }

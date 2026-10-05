@@ -1,0 +1,18 @@
+# Realistic running Hosts generation with aliases, malformed entries and comments.
+127.0.0.1 localhost
+0.0.0.0 target.example other.example
+127.0.0.9 alias.example TARGET.EXAMPLE. # another IPv4 target
+2001:db8::9 target.example ipv6-alias.example
+::1 target.example#attached comment with no whitespace
+0.0.0.0 target.example # duplicate address
+203.0.113.1 prefix-target.example
+203.0.113.2 target.example.attacker.invalid
+203.0.113.3 unrelated.example # target.example
+999.1.2.3 target.example
+::: target.example
+2001:db8:::9 target.example
+resolver.example target.example
+192.0.2.30 xn--bcher-kva.example
+2001:db8::30 BÜCHER.example. alias-idn.example
+192.0.2.30 xn--bcher-kva.example # repeated international mapping
+192.0.2.31 bÜcher!.example

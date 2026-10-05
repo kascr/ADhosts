@@ -29,7 +29,6 @@
         android:layout_height="match_parent"
         android:background="@android:color/transparent"
         android:elevation="0dp"
-        app:labelVisibilityMode="selected"
-        app:menu="@menu/menu_bottom_nav" />
+        app:labelVisibilityMode="selected" />
 
 </FrameLayout>

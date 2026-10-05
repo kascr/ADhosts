@@ -6,8 +6,8 @@ import android.content.Context
 import android.content.Intent
 import android.os.Bundle
 import android.util.Log
-import android.view.View
 import android.view.animation.AccelerateDecelerateInterpolator
+import android.view.View
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -21,16 +21,21 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import com.kascr.adhosts.R
-import com.kascr.adhosts.crash.CrashReportStore
-import com.kascr.adhosts.crash.ExpectedExitGuard
-import com.kascr.adhosts.data.HostsSubscriptionManager
-import com.kascr.adhosts.data.RecommendedHosts
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.checkbox.MaterialCheckBox
 import com.google.android.material.progressindicator.CircularProgressIndicator
 import com.google.android.material.progressindicator.LinearProgressIndicator
+import com.kascr.adhosts.crash.CrashReportStore
+import com.kascr.adhosts.crash.ExpectedExitGuard
+import com.kascr.adhosts.data.HostsOperationJournal
+import com.kascr.adhosts.data.HostsOperationLock
+import com.kascr.adhosts.data.HostsSubscriptionManager
+import com.kascr.adhosts.data.RecommendedHosts
+import com.kascr.adhosts.data.RootEnvironment
+import com.kascr.adhosts.data.RootEnvironment.quote as shellQuote
+import com.kascr.adhosts.data.RootHostsStore
+import com.kascr.adhosts.R
 import com.topjohnwu.superuser.Shell
 import java.io.File
 import java.io.FileOutputStream
@@ -38,6 +43,8 @@ import java.io.IOException
 import java.nio.file.AtomicMoveNotSupportedException
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.withLock
 
 class StartActivity : AppCompatActivity() {
 
@@ -405,7 +412,12 @@ class StartActivity : AppCompatActivity() {
         }
     }
 
-    private fun prepareEnvironmentAndModule(): InitializationOutcome {
+    private fun prepareEnvironmentAndModule(): InitializationOutcome = runBlocking {
+        HostsOperationLock.mutex.withLock { prepareEnvironmentAndModuleLocked() }
+    }
+
+    private fun prepareEnvironmentAndModuleLocked(): InitializationOutcome {
+        HostsOperationJournal.recover(applicationContext)
         cleanupLegacyBootstrapFiles()
         val installedVersion = installedModuleVersionCode()
         val installer = detectRootInstaller()
@@ -423,16 +435,17 @@ class StartActivity : AppCompatActivity() {
         }
 
         if (
-            installer?.kind == RootManager.KERNEL_SU &&
-            kernelSuRequiresMetaModule(installer.executable) &&
-            !hasInstalledMetaModule()
+            RootEnvironment.detect()?.requiresMetaModule == true &&
+            !RootEnvironment.hasReadyMetaModule()
         ) {
             return InitializationOutcome(
-                manager = installer.kind,
+                manager = installer?.kind,
                 moduleVersion = installedModuleVersionCode(),
                 statusMessage = R.string.module_metamodule_required
             )
         }
+
+        if (!RootHostsStore.write("")) throw IOException("Root Hosts recovery is pending")
 
         return InitializationOutcome(
             manager = installer?.kind,
@@ -464,53 +477,8 @@ class StartActivity : AppCompatActivity() {
     }
 
     private fun detectRootInstaller(): RootInstaller? {
-        val command = """
-            if [ -x /data/adb/ksud ]; then
-                printf 'KERNEL_SU|/data/adb/ksud\n'
-            elif [ -x /data/adb/ap/bin/apd ]; then
-                printf 'APATCH|/data/adb/ap/bin/apd\n'
-            elif [ -x /data/adb/apd ]; then
-                printf 'APATCH|/data/adb/apd\n'
-            elif command -v ksud >/dev/null 2>&1; then
-                printf 'KERNEL_SU|%s\n' "${'$'}(command -v ksud)"
-            elif command -v apd >/dev/null 2>&1; then
-                printf 'APATCH|%s\n' "${'$'}(command -v apd)"
-            elif command -v magisk >/dev/null 2>&1; then
-                printf 'MAGISK|%s\n' "${'$'}(command -v magisk)"
-            else
-                exit 127
-            fi
-        """.trimIndent()
-        val result = Shell.cmd(command).exec()
-        if (!result.isSuccess) return null
-
-        val parts = result.out.firstOrNull()?.trim()?.split('|', limit = 2) ?: return null
-        if (parts.size != 2 || parts[1].isBlank()) return null
-        val kind = runCatching { RootManager.valueOf(parts[0]) }.getOrNull() ?: return null
-        return RootInstaller(kind, parts[1])
-    }
-
-    private fun kernelSuRequiresMetaModule(executable: String): Boolean {
-        val result = Shell.cmd("${shellQuote(executable)} -V 2>/dev/null").exec()
-        return result.isSuccess && kernelSuRequiresMetaModule(result.out.joinToString(" "))
-    }
-
-    private fun hasInstalledMetaModule(): Boolean {
-        val command = """
-            for prop in \
-                /data/adb/metamodule/module.prop \
-                /data/adb/modules/*/module.prop \
-                /data/adb/modules_update/*/module.prop; do
-                [ -f "${'$'}prop" ] || continue
-                module_dir="${'$'}{prop%/module.prop}"
-                [ -f "${'$'}module_dir/remove" ] && continue
-                if grep -Eq '^metamodule=(1|true)${'$'}' "${'$'}prop"; then
-                    exit 0
-                fi
-            done
-            exit 1
-        """.trimIndent()
-        return Shell.cmd(command).exec().isSuccess
+        val manager = RootEnvironment.detect() ?: return null
+        return RootInstaller(RootManager.valueOf(manager.kind.name), manager.executable)
     }
 
     private fun cleanupLegacyBootstrapFiles() {
@@ -589,7 +557,6 @@ class StartActivity : AppCompatActivity() {
         }
     }
 
-    private fun shellQuote(value: String): String = "'${value.replace("'", "'\"'\"'")}'"
 
     companion object {
         private const val TAG = "StartActivity"

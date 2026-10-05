@@ -2,7 +2,6 @@
 <FrameLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
@@ -14,21 +13,11 @@
         android:scaleType="centerCrop"
         android:visibility="invisible" />
 
-    <View
-        android:id="@+id/functionBackgroundScrim"
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/functionContentRoot"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:visibility="invisible" />
-
-<androidx.coordinatorlayout.widget.CoordinatorLayout
-    android:id="@+id/functionContentRoot"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@android:color/transparent">
-
-    <androidx.core.widget.NestedScrollView
-        android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:background="@android:color/transparent">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -93,7 +82,7 @@
                         android:id="@+id/dbValueText"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        tools:text="0.0"
+                        android:text="@string/decibel_initial_value"
                         android:textColor="?attr/colorOnSurfaceVariant"
                         android:textSize="56sp"
                         android:textStyle="bold"
@@ -113,25 +102,20 @@
             </FrameLayout>
 
             <!-- ===== 状态徽章（参考项目 categoryBadge） ===== -->
-            <LinearLayout
-                android:layout_width="match_parent"
+            <TextView
+                android:id="@+id/categoryBadge"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:gravity="center_horizontal"
+                android:layout_gravity="center_horizontal"
                 android:layout_marginTop="-16dp"
-                android:layout_marginBottom="24dp">
-
-                <TextView
-                    android:id="@+id/categoryBadge"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:background="@drawable/badge_bg"
-                    android:paddingHorizontal="20dp"
-                    android:paddingVertical="8dp"
-                    android:text="@string/decibel_not_measured"
-                    android:textColor="@android:color/white"
-                    android:textSize="16sp"
-                    android:textStyle="bold" />
-            </LinearLayout>
+                android:layout_marginBottom="24dp"
+                android:background="@drawable/badge_bg"
+                android:paddingHorizontal="20dp"
+                android:paddingVertical="8dp"
+                android:text="@string/decibel_not_measured"
+                android:textColor="@android:color/white"
+                android:textSize="16sp"
+                android:textStyle="bold" />
 
             <!-- ===== 当前分贝 / 峰值 双卡片（参考项目 statsRow） ===== -->
             <LinearLayout
@@ -174,7 +158,7 @@
                             android:id="@+id/currentDbText"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            tools:text="0.0"
+                            android:text="@string/decibel_initial_value"
                             android:textColor="?attr/colorOnSurface"
                             android:textSize="24sp"
                             android:textStyle="bold" />
@@ -221,7 +205,7 @@
                             android:id="@+id/maxDbText"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            tools:text="0.0"
+                            android:text="@string/decibel_initial_value"
                             android:textColor="#F87171"
                             android:textSize="24sp"
                             android:textStyle="bold" />
@@ -377,7 +361,4 @@
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
-
-</androidx.coordinatorlayout.widget.CoordinatorLayout>
-
 </FrameLayout>

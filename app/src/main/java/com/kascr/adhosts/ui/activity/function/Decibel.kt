@@ -63,7 +63,7 @@ class Decibel : BaseActivity<ActivityDecibelBinding>() {
 
     private fun configureWindow() {
         WindowCompat.setDecorFitsSystemWindows(window, false)
-        bindStoredBackground(binding.functionBackgroundImage, binding.functionBackgroundScrim)
+        bindStoredBackground(binding.functionBackgroundImage)
         ViewCompat.setOnApplyWindowInsetsListener(binding.functionContentRoot) { view, insets ->
             val statusBarHeight = insets.getInsets(WindowInsetsCompat.Type.statusBars()).top
             view.setPadding(0, statusBarHeight, 0, 0)

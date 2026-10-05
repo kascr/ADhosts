@@ -1,5 +1,6 @@
 package com.kascr.adhosts.data
 
+import android.content.pm.Signature
 import java.io.File
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -12,6 +13,23 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [29])
 class AppUpdateInstallerTest {
+
+    @Test
+    fun acceptsOnlyMatchingSignerOrProvenRotation() {
+        val old = Signature("01020304")
+        val rotated = Signature("05060708")
+        val unrelated = Signature("090a0b0c")
+        assertTrue(AppUpdateInstaller.acceptsSignerHistory(setOf(old), setOf(old), setOf(old)))
+        assertTrue(AppUpdateInstaller.acceptsSignerHistory(
+            setOf(old), setOf(rotated), setOf(old, rotated)
+        ))
+        assertFalse(AppUpdateInstaller.acceptsSignerHistory(
+            setOf(old), setOf(rotated), setOf(rotated)
+        ))
+        assertFalse(AppUpdateInstaller.acceptsSignerHistory(
+            setOf(old), setOf(rotated), setOf(old, unrelated)
+        ))
+    }
 
     @Test
     fun removesStaleUpdateApksButKeepsRecentAndOtherFiles() {

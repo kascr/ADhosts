@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <attr name="mainBackgroundScrimColor" format="color" />
     <attr name="appCardBackgroundColor" format="color" />
     <attr name="appCardHighBackgroundColor" format="color" />
     <attr name="appCardStrokeColor" format="color" />

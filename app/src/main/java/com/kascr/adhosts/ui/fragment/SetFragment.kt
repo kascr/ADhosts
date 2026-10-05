@@ -3,24 +3,27 @@ package com.kascr.adhosts.ui.fragment
 import android.content.Intent
 import android.os.Bundle
 import android.os.Environment
+import android.util.Log
 import android.view.View
 import android.widget.Toast
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import com.kascr.adhosts.R
+import com.kascr.adhosts.data.RootEnvironment.quote as shellQuote
+import com.kascr.adhosts.data.ToolShellCommands
 import com.kascr.adhosts.databinding.FragmentSetBinding
+import com.kascr.adhosts.R
 import com.kascr.adhosts.ui.activity.function.Decibel
 import com.kascr.adhosts.ui.base.BaseFragment
 import com.kascr.adhosts.utils.GlassDialog
 import com.topjohnwu.superuser.Shell
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 import java.nio.file.AtomicMoveNotSupportedException
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class SetFragment : BaseFragment<FragmentSetBinding>(R.layout.fragment_set) {
 
@@ -191,7 +194,6 @@ class SetFragment : BaseFragment<FragmentSetBinding>(R.layout.fragment_set) {
         """.trimIndent()
     }
 
-    private fun shellQuote(value: String): String = "'${value.replace("'", "'\"'\"'")}'"
 
     private fun extractAssetIfChanged(assetPath: String): File {
         val assetBytes = requireContext().assets.open(assetPath).use { it.readBytes() }
@@ -254,10 +256,19 @@ class SetFragment : BaseFragment<FragmentSetBinding>(R.layout.fragment_set) {
         longToast: Boolean = false
     ) {
         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
-            val result = Shell.cmd(*commands.toTypedArray()).exec()
+            val success = try {
+                val result = ToolShellCommands.execute(commands)
+                if (!result.isSuccess) {
+                    Log.w("SetFragment", "Tool command failed (${result.code}): ${result.err.joinToString("\n")}")
+                }
+                result.isSuccess
+            } catch (error: Exception) {
+                Log.w("SetFragment", "Unable to run tool command", error)
+                false
+            }
             withContext(Dispatchers.Main) {
                 val context = context ?: return@withContext
-                val message = if (result.isSuccess) successMessage else failureMessage
+                val message = if (success) successMessage else failureMessage
                 val duration = if (longToast) Toast.LENGTH_LONG else Toast.LENGTH_SHORT
                 Toast.makeText(context, message, duration).show()
             }

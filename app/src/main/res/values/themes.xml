@@ -32,7 +32,6 @@
         <item name="colorSurfaceContainerHighest">@color/md_theme_surfaceContainerHighest</item>
 
         <!-- App-specific surfaces -->
-        <item name="mainBackgroundScrimColor">#66121318</item>
         <item name="appCardBackgroundColor">#B01E1F25</item>
         <item name="appCardHighBackgroundColor">#C0292A2F</item>
         <item name="appCardStrokeColor">#80B7CFFF</item>
@@ -65,7 +64,6 @@
 
     <!-- More transparent surface set used when a custom background image is active -->
     <style name="AppTheme.NoAnimation.Background" parent="AppTheme.NoAnimation">
-        <item name="mainBackgroundScrimColor">#66121318</item>
         <item name="appCardBackgroundColor">#991E1F25</item>
         <item name="appCardHighBackgroundColor">#B3292A2F</item>
         <item name="appCardStrokeColor">#90C5D8FF</item>

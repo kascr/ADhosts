@@ -1,14 +1,17 @@
 package com.kascr.adhosts.data
 
 import java.io.File
+import java.io.IOException
 import java.net.InetAddress
 import java.net.ServerSocket
 import java.nio.file.Files
 import java.security.MessageDigest
+import java.util.Locale
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -17,7 +20,7 @@ import org.robolectric.annotation.Config
 import kotlin.concurrent.thread
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [29])
+@Config(sdk = [29], shadows = [DirectoryAwareOsShadow::class])
 class HostsUpdateManagerTest {
     @Test
     fun comparisonCountsDomainChangesWithoutHeadersOrDuplicateLines() {
@@ -47,6 +50,29 @@ class HostsUpdateManagerTest {
         assertEquals("xn--bcher-kva.example", HostsUpdateManager.normalizeDomain("BÜCHER.example."))
         assertNull(HostsUpdateManager.normalizeDomain("*.example.com"))
         assertNull(HostsUpdateManager.normalizeDomain("127.0.0.1"))
+    }
+
+    @Test
+    fun queryAndManualRulesUseTheSameNormalizationUnderTurkishLocale() {
+        val previousLocale = Locale.getDefault()
+        try {
+            Locale.setDefault(Locale.forLanguageTag("tr-TR"))
+            assertEquals("i.example", HostsUpdateManager.normalizeDomain("  I.EXAMPLE.  "))
+            val rules = ManualHostsRuleManager.parseEditorText("0.0.0.0 I.EXAMPLE.")
+            assertTrue(rules.isValid)
+            assertEquals("i.example", rules.rules.single().hostname)
+        } finally {
+            Locale.setDefault(previousLocale)
+        }
+    }
+
+    @Test
+    fun unicodeNumericAddressesCannotBecomeDomainRulesOrIncreaseCounts() {
+        val addressAsDomain = "１２７.０.０.１"
+        assertNull(HostsUpdateManager.normalizeDomain(addressAsDomain))
+        assertFalse(ManualHostsRuleManager.parseEditorText("0.0.0.0 $addressAsDomain").isValid)
+        assertEquals(0, HostsSubscriptionManager.countEffectiveRules(sequenceOf("0.0.0.0 $addressAsDomain")))
+        assertFalse(ManualHostsRuleManager.parseEditorText("0.0.0.0 ｌｏｃａｌｈｏｓｔ").isValid)
     }
 
     @Test
@@ -97,6 +123,28 @@ class HostsUpdateManagerTest {
 
             ManualHostsRuleManager.saveRules(context, emptyList())
             HostsUpdateManager.prepare(context)
+            try {
+                HostsSubscriptionManager.commitPreview(context, pending) { index ->
+                    if (index == 0) throw IOException("simulated write failure")
+                }
+                fail("Expected write failure")
+            } catch (_: IOException) {
+                assertTrue(cached.readText().contains("old.example"))
+                assertTrue(merged.readText().contains("old.example"))
+            }
+            try {
+                HostsSubscriptionManager.commitPreview(context, pending) { index ->
+                    if (index == 0) throw AssertionError("simulated process termination")
+                }
+                fail("Expected simulated termination")
+            } catch (_: AssertionError) {
+                assertTrue(cached.readText().contains("new.example"))
+            }
+            HostsSubscriptionManager.getSubscriptions(context)
+            assertTrue(cached.readText().contains("new.example"))
+            assertTrue(merged.readText().contains("new.example"))
+            assertFalse(pending.exists())
+            HostsUpdateManager.prepare(context)
             HostsUpdateManager.commit(context)
             assertTrue(cached.readText().contains("new.example"))
             assertTrue(merged.readText().contains("new.example"))
@@ -129,6 +177,26 @@ class HostsUpdateManagerTest {
             second.writeText("# Merged ADhosts - 3\n0.0.0.0 second.example\n")
             HostsUpdateManager.recordApplied(context, second)
             assertTrue(HostsUpdateManager.previousHosts(context).readText().contains("first.example"))
+
+            try {
+                HostsUpdateManager.recordApplied(context, first) {
+                    throw IOException("simulated write failure")
+                }
+                fail("Expected write failure")
+            } catch (_: IOException) {
+                assertTrue(HostsUpdateManager.previousHosts(context).readText().contains("first.example"))
+            }
+            try {
+                HostsUpdateManager.recordApplied(context, first) {
+                    throw AssertionError("simulated process termination")
+                }
+                fail("Expected simulated termination")
+            } catch (_: AssertionError) {
+                assertFalse(previous.exists())
+            }
+            assertTrue(HostsUpdateManager.hasPrevious(context))
+            assertTrue(HostsUpdateManager.previousHosts(context).readText().contains("second.example"))
+            assertTrue(File(current, "ADhosts").readText().contains("first.example"))
         } finally {
             current.deleteRecursively(); previous.deleteRecursively(); config.delete(); manual.delete()
             first.delete(); second.delete()

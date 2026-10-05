@@ -1,48 +1,59 @@
 package com.kascr.adhosts.ui.fragment
+
+import android.annotation.SuppressLint
 import android.app.Dialog
 import android.content.Context
 import android.content.Intent
 import android.content.res.ColorStateList
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.Button
 import android.widget.Toast
-import com.google.android.material.button.MaterialButton
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
+import com.google.android.material.button.MaterialButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.textfield.TextInputEditText
-import com.kascr.adhosts.R
-import com.kascr.adhosts.data.HostsSubscriptionManager
+import com.kascr.adhosts.data.HostsOperationJournal
 import com.kascr.adhosts.data.HostsOperationLock
+import com.kascr.adhosts.data.HostsSubscriptionManager
 import com.kascr.adhosts.data.HostsUpdateManager
-import com.kascr.adhosts.data.UpdatePreview
+import com.kascr.adhosts.data.ManualHostsEditor
 import com.kascr.adhosts.data.ManualHostsRuleManager
 import com.kascr.adhosts.data.RecommendedHosts
+import com.kascr.adhosts.data.RootEnvironment.quote as shellQuote
+import com.kascr.adhosts.data.RootHostsStore
+import com.kascr.adhosts.data.UpdatePreview
 import com.kascr.adhosts.databinding.FragmentHostsBinding
+import com.kascr.adhosts.R
 import com.kascr.adhosts.ui.adapter.SubscriptionAdapter
 import com.kascr.adhosts.ui.base.BaseFragment
+import com.kascr.adhosts.ui.dialog.DomainQueryDialog
 import com.kascr.adhosts.ui.fragment.SettingsFragment.Companion.ACTION_SUBSCRIPTION_UPDATED
 import com.kascr.adhosts.utils.GlassDialog
 import com.topjohnwu.superuser.Shell
+import java.io.File
+import java.io.IOException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import java.io.File
-import java.io.IOException
 
 class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts) {
 
     private lateinit var adapter: SubscriptionAdapter
     private var isStatusCheckRunning = false
     private var lastRenderedStatus: HostsStatus? = null
+    private var isManualEditorCheckRunning = false
     private val dnsOptions by lazy {
         listOf(
             DnsOption("google", getString(R.string.dns_google), listOf("8.8.8.8", "8.8.4.4")),
@@ -79,13 +90,25 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
         super.onViewCreated(view, savedInstanceState)
         isStatusCheckRunning = false
         lastRenderedStatus = null
+        binding.toolsPanel.visibility = if (savedInstanceState?.getBoolean("hosts_tools_expanded") == true)
+            View.VISIBLE else View.GONE
+        binding.toolsButton.isSelected = binding.toolsPanel.visibility == View.VISIBLE
         initDnsConfiguration()
-        restorePrivateDnsFromPreviousVersionIfNeeded()
         initRecyclerView()
         initClickListeners()
         observeSubscriptionUpdates()
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                ManualHostsEditor.savedEvents.collect { checkReturnedManualRules() }
+            }
+        }
         renderHostsStatus(HostsStatus.Checking)
         updateStatusUI()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean("hosts_tools_expanded", bindingOrNull?.toolsPanel?.visibility == View.VISIBLE)
     }
 
     override fun onResume() {
@@ -96,6 +119,7 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
         refreshPendingPreview()
         binding.restorePreviousButton.isEnabled = HostsUpdateManager.hasPrevious(requireContext())
         updateStatusUI()
+        recoverInterruptedRootWrite()
         if (HostsOperationLock.mutex.isLocked) {
             setHostsActionsEnabled(false)
             viewLifecycleOwner.lifecycleScope.launch {
@@ -106,6 +130,30 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
                 refreshManualRulesSummary()
                 refreshPendingPreview()
                 updateStatusUI()
+                checkReturnedManualRules()
+            }
+        }
+        checkReturnedManualRules()
+    }
+
+    private fun recoverInterruptedRootWrite() {
+        HostsOperationLock.scope.launch(Dispatchers.IO) {
+            HostsOperationLock.mutex.withLock {
+                val pending = runCatching {
+                    Shell.cmd("test -d /data/adb/.adhosts-hosts-journal").exec().isSuccess
+                }.onFailure { Log.w("HostsFragment", "Could not inspect Root Hosts journal", it) }
+                    .getOrDefault(false)
+                if (!pending) return@withLock
+                val recovered = runCatching { writeModuleHosts("") }
+                    .onFailure { Log.e("HostsFragment", "Could not recover Root Hosts files", it) }
+                    .getOrDefault(false)
+                if (recovered) {
+                    withContext(Dispatchers.Main) {
+                        if (bindingOrNull != null) updateStatusUI()
+                    }
+                } else withContext(Dispatchers.Main) {
+                    if (bindingOrNull != null) showToast(R.string.hosts_operation_failed_root_module)
+                }
             }
         }
     }
@@ -161,6 +209,7 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
                             )
                         }
                     }
+                    if (failure != null) throw ReportedHostsFailure(failure)
                 }
             },
             onToggleClick = ::toggleSubscription
@@ -199,6 +248,7 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
                     )
                 }
             }
+            if (failure != null) throw ReportedHostsFailure(failure)
         }
         if (!started) adapter.refreshRow(url)
     }
@@ -394,7 +444,8 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
         val marker = "'^# Merged ADhosts - '"
         return Shell.cmd(
             "grep -q $marker \"$systemHostsPath\" 2>/dev/null || " +
-                "grep -q $marker \"$metaModuleHostsPath\" 2>/dev/null"
+                "grep -q $marker \"$metaModuleHostsPath\" 2>/dev/null || " +
+                "grep -q $marker \"$runtimeHostsPath\" 2>/dev/null"
         ).exec().isSuccess
     }
 
@@ -411,6 +462,17 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
                 ?: refreshPendingPreview()
         }
         binding.dnsChip.setOnClickListener { showDnsSelectionDialog() }
+        binding.toolsButton.setOnClickListener {
+            val expanded = binding.toolsPanel.visibility != View.VISIBLE
+            binding.toolsPanel.visibility = if (expanded) View.VISIBLE else View.GONE
+            binding.toolsButton.isSelected = expanded
+            binding.headerScroll.post {
+                bindingOrNull?.let { current ->
+                    current.headerScroll.smoothScrollTo(0,
+                        if (expanded) current.headerScroll.getChildAt(0).height else 0)
+                }
+            }
+        }
     }
 
     private fun observeSubscriptionUpdates() {
@@ -444,6 +506,7 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
         }
     }
 
+    @SuppressLint("SuspiciousIndentation")
     private suspend fun applyMergedHostsLocked(appContext: Context) {
         withContext(Dispatchers.IO) operation@{
             if (isModuleUpdatePending()) {
@@ -479,7 +542,7 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
                     withContext(Dispatchers.Main) {
                         showToast(getString(R.string.update_failed, error.message.orEmpty()), long = true)
                     }
-                    return@operation
+                    throw ReportedHostsFailure(error)
                 }
                 if (!sourceFile.exists()) {
                     withContext(Dispatchers.Main) {
@@ -515,8 +578,9 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
         recordSnapshot: Boolean = true
     ): Boolean {
         val written = writeModuleHosts(sourcePath)
+        if (!written) throw IOException(appContext.getString(R.string.hosts_operation_failed_root_module))
         if (written && recordSnapshot) {
-            runCatching { HostsUpdateManager.recordApplied(appContext, File(sourcePath)) }
+            HostsUpdateManager.recordApplied(appContext, File(sourcePath))
         }
         val dnsApplied = if (written && applyDns) {
             currentDnsOption?.let(::applyDnsToSystem) ?: true
@@ -539,66 +603,7 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
         return written
     }
 
-    private fun writeModuleHosts(sourcePath: String): Boolean {
-        val secondaryPath = if (hasMetaModuleHosts()) metaModuleHostsPath else ""
-        // Stage each file beside its destination so mv replaces it on the same filesystem.
-        // The first destination is restored if replacing the second one fails.
-        val script = """
-            source=${shellQuote(sourcePath)}
-            primary=${shellQuote(systemHostsPath)}
-            secondary=${shellQuote(secondaryPath)}
-            primary_stage=
-            secondary_stage=
-            primary_backup=
-            secondary_backup=
-            primary_changed=0
-            secondary_changed=0
-            finish() {
-                result=${'$'}?
-                trap - EXIT HUP INT TERM
-                if [ "${'$'}result" -ne 0 ] && [ "${'$'}secondary_changed" -eq 1 ]; then
-                    mv -f "${'$'}secondary_backup" "${'$'}secondary" || result=1
-                fi
-                if [ "${'$'}result" -ne 0 ] && [ "${'$'}primary_changed" -eq 1 ]; then
-                    mv -f "${'$'}primary_backup" "${'$'}primary" || result=1
-                fi
-                [ -z "${'$'}primary_stage" ] || rm -f "${'$'}primary_stage"
-                [ -z "${'$'}secondary_stage" ] || rm -f "${'$'}secondary_stage"
-                [ -z "${'$'}primary_backup" ] || rm -f "${'$'}primary_backup"
-                [ -z "${'$'}secondary_backup" ] || rm -f "${'$'}secondary_backup"
-                exit "${'$'}result"
-            }
-            trap finish EXIT
-            trap 'exit 1' HUP INT TERM
-            [ -f "${'$'}source" ] && [ -f "${'$'}primary" ] || exit 1
-            primary_stage=${'$'}(mktemp "${'$'}primary.new.XXXXXX") || exit 1
-            primary_backup=${'$'}(mktemp "${'$'}primary.old.XXXXXX") || exit 1
-            cp -p "${'$'}primary" "${'$'}primary_backup" || exit 1
-            cp "${'$'}source" "${'$'}primary_stage" && chmod 644 "${'$'}primary_stage" || exit 1
-            if [ -n "${'$'}secondary" ]; then
-                [ -f "${'$'}secondary" ] || exit 1
-                secondary_stage=${'$'}(mktemp "${'$'}secondary.new.XXXXXX") || exit 1
-                secondary_backup=${'$'}(mktemp "${'$'}secondary.old.XXXXXX") || exit 1
-                cp -p "${'$'}secondary" "${'$'}secondary_backup" || exit 1
-                cp "${'$'}source" "${'$'}secondary_stage" && chmod 644 "${'$'}secondary_stage" || exit 1
-            fi
-            primary_changed=1
-            mv -f "${'$'}primary_stage" "${'$'}primary" || exit 1
-            primary_stage=
-            if [ -n "${'$'}secondary" ]; then
-                secondary_changed=1
-                mv -f "${'$'}secondary_stage" "${'$'}secondary" || exit 1
-                secondary_stage=
-            fi
-            cmp -s "${'$'}source" "${'$'}primary" || exit 1
-            if [ -n "${'$'}secondary" ]; then
-                cmp -s "${'$'}source" "${'$'}secondary" || exit 1
-            fi
-            primary_changed=0
-            secondary_changed=0
-        """.trimIndent()
-        return Shell.cmd("sh -c ${shellQuote(script)}").exec().isSuccess
-    }
+    private fun writeModuleHosts(sourcePath: String): Boolean = RootHostsStore.write(sourcePath)
 
     private fun restoreDefaultHosts() {
         runHostsOperation { appContext ->
@@ -618,7 +623,8 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
             } finally {
                 defaultFile.delete()
             }
-            val dnsRestored = written && applyDnsToSystem(defaultDnsOption)
+            if (!written) throw IOException(appContext.getString(R.string.hosts_operation_failed_root_module))
+            val dnsRestored = applyDnsToSystem(defaultDnsOption)
 
             val status = if (written) detectHostsStatus() else HostsStatus.Disabled
             withContext(Dispatchers.Main) ui@{
@@ -639,22 +645,21 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
     }
 
     private fun detectHostsStatus(): HostsStatus {
-        val moduleActive = isModuleActive()
         val runtimeRules = countHostsRules(runtimeHostsPath)
         val moduleStates = listOf(
             readHostsRuleState(systemHostsPath),
             readHostsRuleState(metaModuleHostsPath)
         )
-        val moduleRules = moduleStates.maxOf { it.ruleCount }
-        val hasWritableModuleHosts = moduleStates.any { it.exists }
+        val moduleRules = moduleStates.firstOrNull { it.exists }?.ruleCount ?: 0
+        val runtimeConfigured = Shell.cmd("grep -q '^# Merged ADhosts - ' '$runtimeHostsPath'").exec().isSuccess
+        val expectedPath = if (moduleStates.first().exists) systemHostsPath else metaModuleHostsPath
+        val runtimeMatches = RootHostsStore.matchesRuntimePath(expectedPath)
 
         return when {
-            runtimeRules >= MIN_EFFECTIVE_RULES &&
-                hasWritableModuleHosts &&
+            runtimeConfigured && runtimeRules >= MIN_EFFECTIVE_RULES &&
                 moduleRules <= MIN_HOSTS_LINES -> HostsStatus.PendingDisable(runtimeRules)
 
-            runtimeRules >= MIN_EFFECTIVE_RULES -> HostsStatus.Enabled(runtimeRules)
-            moduleActive && moduleRules >= MIN_EFFECTIVE_RULES -> HostsStatus.Enabled(moduleRules)
+            runtimeConfigured && runtimeMatches && runtimeRules >= MIN_EFFECTIVE_RULES -> HostsStatus.Enabled(runtimeRules)
             moduleRules >= MIN_EFFECTIVE_RULES -> HostsStatus.PendingEnable(moduleRules)
             else -> HostsStatus.Disabled
         }
@@ -795,6 +800,7 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
         }
     }
 
+    @SuppressLint("SuspiciousIndentation")
     private suspend fun syncSubscriptionsLocked(appContext: Context) {
         withContext(Dispatchers.IO) operation@{
             try {
@@ -875,7 +881,7 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
                             "cmp -s \"${oldMergedFile.absolutePath}\" \"$metaModuleHostsPath\""
                     ).exec().isSuccess
                     if (matchesCurrentModule && !currentSnapshot.isFile) {
-                        runCatching { HostsUpdateManager.recordApplied(appContext, oldMergedFile) }
+                        HostsUpdateManager.recordApplied(appContext, oldMergedFile)
                     }
                     val oldApplied = currentSnapshot.takeIf(File::isFile)
                         ?: oldMergedFile.takeIf { matchesCurrentModule }
@@ -883,12 +889,11 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
                             showFeedback = false, applyDns = false, recordSnapshot = false)) {
                         throw IOException(getString(R.string.exec_failed))
                     }
-                    val historySaved: Boolean
                     try {
                         HostsUpdateManager.commit(appContext)
-                        historySaved = !wasApplied || runCatching {
+                        if (wasApplied) {
                             HostsUpdateManager.recordApplied(appContext, mergedHostsFile(appContext))
-                        }.isSuccess
+                        }
                     } catch (error: Exception) {
                         if (wasApplied && oldApplied?.isFile == true) {
                             applyMergedHostsInternal(appContext, oldApplied.absolutePath,
@@ -903,7 +908,6 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
                         binding.restorePreviousButton.isEnabled = HostsUpdateManager.hasPrevious(appContext)
                         showToast(when {
                             !wasApplied -> R.string.subscription_updated_not_applied
-                            !historySaved -> R.string.update_preview_applied_no_restore
                             else -> R.string.update_preview_applied
                         })
                         updateStatusUI()
@@ -916,48 +920,14 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
                         showToast(getString(R.string.update_failed, error.message.orEmpty()), long = true)
                         refreshPendingPreview()
                     }
+                    throw ReportedHostsFailure(error)
                 }
             }
         }
     }
 
     private fun showDomainQueryDialog() {
-        val input = TextInputEditText(requireContext()).apply {
-            hint = getString(R.string.domain_query_hint)
-            setSingleLine(true)
-            setPadding(32, 24, 32, 24)
-        }
-        val dialog = MaterialAlertDialogBuilder(requireContext())
-            .setTitle(R.string.domain_query_button)
-            .setView(input)
-            .setPositiveButton(R.string.domain_query_button) { _, _ ->
-                val raw = input.text?.toString().orEmpty()
-                val domain = HostsUpdateManager.normalizeDomain(raw)
-                if (domain == null) {
-                    showToast(R.string.domain_query_invalid)
-                    return@setPositiveButton
-                }
-                val appContext = requireContext().applicationContext
-                viewLifecycleOwner.lifecycleScope.launch {
-                    val match = withContext(Dispatchers.IO) {
-                        HostsUpdateManager.findDomain(appContext, domain, isAppHostsConfigured())
-                    }
-                    if (bindingOrNull == null) return@launch
-                    val details = if (match == null) getString(R.string.domain_query_no_match, domain)
-                    else getString(R.string.domain_query_match, match.hostname, match.address,
-                        if (match.manual) getString(R.string.manual_hosts_rules) else match.source,
-                        getString(if (match.applied) R.string.domain_query_applied else R.string.domain_query_not_applied))
-                    val message = "$details\n\n${getString(R.string.domain_query_limit)}"
-                    GlassDialog.show(MaterialAlertDialogBuilder(requireContext())
-                        .setTitle(R.string.domain_query_result)
-                        .setMessage(message)
-                        .setPositiveButton(android.R.string.ok, null)
-                        .create())
-                }
-            }
-            .setNegativeButton(android.R.string.cancel, null)
-            .create()
-        GlassDialog.show(dialog)
+        DomainQueryDialog(this, ::isAppHostsConfigured).show()
     }
 
     private fun confirmRestorePrevious() {
@@ -1011,6 +981,7 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
                         if (bindingOrNull == null) return@ui
                         showToast(getString(R.string.update_failed, error.message.orEmpty()), long = true)
                     }
+                    throw ReportedHostsFailure(error)
                 }
             }
         }
@@ -1027,12 +998,18 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
         // Keep the mutation alive through a view teardown so its commit/rollback can finish.
         HostsOperationLock.scope.launch {
             try {
-                operation(appContext)
+                HostsOperationJournal.run(appContext) { operation(appContext) }
             } catch (error: CancellationException) {
                 throw error
-            } catch (_: Exception) {
+            } catch (error: Exception) {
+                Log.w("HostsFragment", "Hosts operation rolled back", error)
                 if (bindingOrNull != null) {
-                    showToast(R.string.hosts_operation_failed_root_module, long = true)
+                    if (error !is ReportedHostsFailure) showToast(R.string.hosts_operation_failed_root_module, long = true)
+                    loadSubscriptions()
+                    initDnsConfiguration()
+                    refreshManualRulesSummary()
+                    refreshPendingPreview()
+                    updateStatusUI()
                 }
             } finally {
                 HostsOperationLock.mutex.unlock()
@@ -1063,50 +1040,11 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
         return Shell.cmd(*commands.toTypedArray()).exec().isSuccess
     }
 
-    private fun privateDnsRestoreCommand(key: String, value: String?): String {
-        return if (value == null) {
-            "settings delete global $key"
-        } else {
-            "settings put global $key ${shellQuote(value)}"
-        }
-    }
-
-    private fun restorePrivateDnsFromPreviousVersionIfNeeded() {
-        val appContext = requireContext().applicationContext
-        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
-            val preferences = dnsPreferences(appContext)
-            if (!preferences.getBoolean(KEY_ORIGINAL_DNS_CAPTURED, false)) return@launch
-
-            val originalMode = preferences.getString(KEY_ORIGINAL_DNS_MODE, null)
-            val originalSpecifier = preferences.getString(KEY_ORIGINAL_DNS_SPECIFIER, null)
-            val currentState = Shell.cmd(
-                "settings get global $PRIVATE_DNS_MODE_SETTING",
-                "settings get global $PRIVATE_DNS_SPECIFIER_SETTING"
-            ).exec()
-            val currentSpecifier = currentState.out.getOrNull(1)
-                ?.trim()
-                ?.takeUnless { it.isEmpty() || it == "null" }
-            val stillManagedByPreviousVersion = currentState.isSuccess &&
-                currentSpecifier in APP_MANAGED_PRIVATE_DNS_HOSTS
-            val restored = !stillManagedByPreviousVersion || Shell.cmd(
-                privateDnsRestoreCommand(PRIVATE_DNS_MODE_SETTING, originalMode),
-                privateDnsRestoreCommand(PRIVATE_DNS_SPECIFIER_SETTING, originalSpecifier)
-            ).exec().isSuccess
-            if (restored) {
-                preferences.edit()
-                    .remove(KEY_ORIGINAL_DNS_CAPTURED)
-                    .remove(KEY_ORIGINAL_DNS_MODE)
-                    .remove(KEY_ORIGINAL_DNS_SPECIFIER)
-                    .apply()
-            }
-        }
-    }
-
-    private fun shellQuote(value: String): String = "'${value.replace("'", "'\"'\"'")}'"
 
     private fun dnsPreferences(context: Context) =
         context.getSharedPreferences(DNS_PREFERENCES_NAME, Context.MODE_PRIVATE)
 
+    @SuppressLint("SuspiciousIndentation")
     private fun showDnsSelectionDialog() {
         val checkedIndex = dnsOptions.indexOfFirst { it.id == currentDnsOption?.id }.coerceAtLeast(0)
         val dialog = MaterialAlertDialogBuilder(requireContext())
@@ -1155,9 +1093,7 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
                 ManualHostsRuleManager.getRules(appContext).size
             }
             if (bindingOrNull == null) return@launch
-            binding.subscriptionTitle.text = if (count > 0) {
-                getString(R.string.subscription_title_with_manual, adapter.itemCount, count)
-            } else getString(R.string.subscription_title_count, adapter.itemCount)
+            binding.subscriptionTitle.text = getString(R.string.subscription_title_count, adapter.itemCount)
             if (adapter.itemCount == 0) {
                 binding.emptyText.visibility = View.VISIBLE
                 binding.emptyText.setText(if (count > 0) R.string.manual_only_hint
@@ -1246,7 +1182,7 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
 
         dialogView.findViewById<View>(R.id.manualRuleOption).setOnClickListener {
             dialog.dismiss()
-            showManualRulesDialog()
+            openManualRulesEditor()
         }
         dialogView.findViewById<View>(R.id.networkSubscriptionOption).setOnClickListener {
             dialog.dismiss()
@@ -1258,72 +1194,202 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
         GlassDialog.show(dialog)
     }
 
-    private fun showManualRulesDialog() {
-        val dialogView = LayoutInflater.from(requireContext())
-            .inflate(R.layout.dialog_manual_hosts_rules, binding.root as? ViewGroup, false)
-        val editText = dialogView.findViewById<TextInputEditText>(R.id.manualRulesEditText)
-        val confirmButton = dialogView.findViewById<MaterialButton>(R.id.btnConfirm)
-        val dialog = Dialog(requireContext()).apply {
-            setContentView(dialogView)
-            setOnShowListener {
-                window?.setLayout(
-                    (resources.displayMetrics.widthPixels * DIALOG_WIDTH_RATIO).toInt(),
-                    WindowManager.LayoutParams.WRAP_CONTENT
-                )
-            }
+    private fun openManualRulesEditor() {
+        if (HostsOperationLock.mutex.isLocked) {
+            showToast(R.string.hosts_operation_in_progress)
+            return
         }
-
-        editText.setText(ManualHostsRuleManager.getEditorText(requireContext()))
-        editText.setSelection(editText.text?.length ?: 0)
-        dialogView.findViewById<MaterialButton>(R.id.btnCancel).setOnClickListener {
-            dialog.dismiss()
-        }
-        confirmButton.setOnClickListener {
-            val parsed = ManualHostsRuleManager.parseEditorText(editText.text?.toString().orEmpty())
-            if (!parsed.isValid) {
-                editText.error = getString(
-                    R.string.manual_hosts_invalid_lines,
-                    parsed.invalidLines.joinToString(", ")
-                )
-                editText.requestFocus()
-                return@setOnClickListener
-            }
-
-            confirmButton.isEnabled = false
-            val started = runHostsOperation { appContext ->
-                val failure = try {
-                    withContext(Dispatchers.IO) {
-                        updateManualRules(appContext, parsed.rules)
-                    }
-                    null
-                } catch (error: CancellationException) {
-                    throw error
-                } catch (error: Exception) {
-                    error
+        val editors = ManualHostsEditor.installedEditors(requireContext())
+        if (editors.isEmpty()) {
+            val dialog = MaterialAlertDialogBuilder(requireContext())
+                .setTitle(R.string.manual_editor_missing_title)
+                .setMessage(R.string.manual_editor_missing_message)
+                .setPositiveButton(R.string.manual_editor_website) { _, _ ->
+                    openExternalWebsite(ManualHostsEditor.WEBSITE)
                 }
-                withContext(Dispatchers.Main) ui@{
-                    if (bindingOrNull == null) return@ui
-                    if (failure == null) {
-                        dialog.dismiss()
-                        showToast(
-                            getString(R.string.manual_hosts_saved, parsed.rules.size),
-                            long = true
-                        )
-                        refreshManualRulesSummary()
-                        refreshPendingPreview()
-                        updateStatusUI()
-                    } else {
-                        confirmButton.isEnabled = true
-                        showToast(
-                            getString(R.string.update_failed, failure.message.orEmpty()),
-                            long = true
-                        )
-                    }
-                }
-            }
-            if (!started) confirmButton.isEnabled = true
+                .setNegativeButton(R.string.cancel, null)
+                .create()
+            GlassDialog.show(dialog)
+            return
         }
+        if (editors.size == 1) {
+            launchManualRulesEditor(editors.first())
+            return
+        }
+        var selected = editors.indexOfFirst {
+            it.packageName == ManualHostsEditor.preferredEditor(requireContext())
+        }.coerceAtLeast(0)
+        val dialog = MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.manual_editor_choose)
+            .setSingleChoiceItems(editors.map { it.label }.toTypedArray(), selected) { _, index ->
+                selected = index
+            }
+            .setPositiveButton(R.string.manual_editor_continue) { _, _ ->
+                launchManualRulesEditor(editors[selected])
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .create()
         GlassDialog.show(dialog)
+    }
+
+    private fun launchManualRulesEditor(editor: ManualHostsEditor.EditorApp) {
+        val appContext = requireContext().applicationContext.createConfigurationContext(resources.configuration)
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    HostsOperationLock.mutex.withLock { ManualHostsEditor.begin(appContext) }
+                }
+                if (bindingOrNull == null) return@launch
+                startActivity(ManualHostsEditor.intent(appContext, editor.packageName))
+                ManualHostsEditor.rememberEditor(appContext, editor.packageName)
+            } catch (error: ManualHostsEditor.DraftRecoveryRequired) {
+                if (bindingOrNull != null) showManualDraftRecovery()
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                Log.w("HostsFragment", "Could not open MT editor", error)
+                if (bindingOrNull != null) {
+                    val dialog = MaterialAlertDialogBuilder(requireContext())
+                        .setTitle(R.string.manual_hosts_rules)
+                        .setMessage(R.string.manual_editor_open_failed)
+                        .setPositiveButton(R.string.manual_editor_continue) { _, _ -> openManualRulesEditor() }
+                        .setNeutralButton(R.string.manual_editor_website) { _, _ ->
+                            openExternalWebsite(ManualHostsEditor.WEBSITE)
+                        }
+                        .setNegativeButton(R.string.cancel, null)
+                        .create()
+                    GlassDialog.show(dialog)
+                }
+            }
+        }
+    }
+
+    private fun checkReturnedManualRules() {
+        if (isManualEditorCheckRunning || bindingOrNull == null) return
+        isManualEditorCheckRunning = true
+        val appContext = requireContext().applicationContext.createConfigurationContext(resources.configuration)
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                val edit = withContext(Dispatchers.IO) {
+                    HostsOperationLock.mutex.withLock { ManualHostsEditor.pending(appContext) }
+                } ?: return@launch
+                if (bindingOrNull == null) return@launch
+                if (!edit.parsed.isValid) {
+                    ManualHostsEditor.markReviewed(appContext, edit.hash)
+                    val dialog = MaterialAlertDialogBuilder(requireContext())
+                        .setTitle(R.string.manual_editor_invalid_title)
+                        .setMessage(getString(R.string.manual_hosts_invalid_lines,
+                            edit.parsed.invalidLines.joinToString(", ")))
+                        .setPositiveButton(R.string.manual_editor_continue) { _, _ -> openManualRulesEditor() }
+                        .setNeutralButton(R.string.manual_editor_discard) { _, _ -> discardManualEdit(appContext) }
+                        .setNegativeButton(R.string.cancel, null)
+                        .create()
+                    GlassDialog.show(dialog)
+                } else if (edit.conflicting || (edit.parsed.rules.isEmpty() &&
+                        ManualHostsRuleManager.getRules(appContext).isNotEmpty())) {
+                    ManualHostsEditor.markReviewed(appContext, edit.hash)
+                    val dialog = MaterialAlertDialogBuilder(requireContext())
+                        .setTitle(if (edit.parsed.rules.isEmpty()) R.string.manual_editor_clear_title
+                            else R.string.manual_hosts_rules)
+                        .setMessage(if (edit.conflicting) R.string.manual_editor_conflict
+                            else R.string.manual_editor_clear_message)
+                        .setPositiveButton(R.string.manual_editor_apply) { _, _ -> importManualEdit(edit, true) }
+                        .setNeutralButton(R.string.manual_editor_discard) { _, _ -> discardManualEdit(appContext) }
+                        .setNegativeButton(R.string.cancel, null)
+                        .create()
+                    GlassDialog.show(dialog)
+                } else importManualEdit(edit)
+            } catch (error: ManualHostsEditor.DraftRecoveryRequired) {
+                if (bindingOrNull != null) showManualDraftRecovery()
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                Log.w("HostsFragment", "Could not read MT editing copy", error)
+                if (bindingOrNull != null) showToast(R.string.manual_editor_open_failed, long = true)
+            } finally {
+                isManualEditorCheckRunning = false
+            }
+        }
+    }
+
+    private fun discardManualEdit(appContext: Context) {
+        viewLifecycleOwner.lifecycleScope.launch {
+            withContext(Dispatchers.IO) {
+                HostsOperationLock.mutex.withLock {
+                    appContext.revokeUriPermission(ManualHostsEditor.uri(appContext),
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+                    ManualHostsEditor.discard(appContext)
+                }
+            }
+        }
+    }
+
+    private fun showManualDraftRecovery() {
+        val appContext = requireContext().applicationContext
+        GlassDialog.show(MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.manual_hosts_rules)
+            .setMessage(R.string.manual_editor_recovery_message)
+            .setPositiveButton(R.string.manual_editor_continue) { _, _ ->
+                viewLifecycleOwner.lifecycleScope.launch {
+                    try {
+                        withContext(Dispatchers.IO) {
+                            HostsOperationLock.mutex.withLock { ManualHostsEditor.recoverDraft(appContext) }
+                        }
+                        if (bindingOrNull != null) openManualRulesEditor()
+                    } catch (error: CancellationException) { throw error }
+                    catch (_: Exception) { if (bindingOrNull != null) showToast(R.string.manual_editor_open_failed) }
+                }
+            }
+            .setNeutralButton(R.string.manual_editor_discard) { _, _ -> discardManualEdit(appContext) }
+            .setNegativeButton(R.string.cancel, null)
+            .create())
+    }
+
+    private fun importManualEdit(edit: ManualHostsEditor.PendingEdit, allowReplacement: Boolean = false) {
+        val appContext = requireContext().applicationContext.createConfigurationContext(resources.configuration)
+        runHostsOperation {
+            val failure = try {
+                withContext(Dispatchers.IO) {
+                    val latest = ManualHostsEditor.pending(appContext, includeReviewed = true)
+                    if (latest == null || latest.hash != edit.hash || !latest.parsed.isValid ||
+                        (latest.conflicting && !allowReplacement)) {
+                        throw IOException(appContext.getString(R.string.manual_editor_changed))
+                    }
+                    updateManualRules(appContext, latest.parsed.rules)
+                    HostsOperationJournal.afterCommit {
+                        if (ManualHostsEditor.complete(appContext, latest.hash)) {
+                            appContext.revokeUriPermission(ManualHostsEditor.uri(appContext),
+                                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+                        }
+                    }
+                }
+                null
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                Log.w("HostsFragment", "Could not import MT editing copy", error)
+                ManualHostsEditor.markReviewed(appContext, edit.hash)
+                error
+            }
+            if (bindingOrNull != null) {
+                refreshManualRulesSummary()
+                refreshPendingPreview()
+                updateStatusUI()
+                if (failure == null) {
+                    showToast(getString(R.string.manual_hosts_saved, edit.parsed.rules.size), long = true)
+                } else {
+                    val dialog = MaterialAlertDialogBuilder(requireContext())
+                        .setTitle(R.string.manual_hosts_rules)
+                        .setMessage(getString(R.string.update_failed, failure.message.orEmpty()))
+                        .setPositiveButton(R.string.manual_editor_apply) { _, _ -> importManualEdit(edit, allowReplacement) }
+                        .setNeutralButton(R.string.manual_editor_continue) { _, _ -> openManualRulesEditor() }
+                        .setNegativeButton(R.string.cancel, null)
+                        .create()
+                    GlassDialog.show(dialog)
+                }
+            }
+            if (failure != null) throw ReportedHostsFailure(failure)
+        }
     }
 
     private suspend fun updateManualRules(
@@ -1332,7 +1398,7 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
     ) {
         val wasApplied = isAppHostsConfigured()
         if (wasApplied && isModuleUpdatePending()) {
-            throw IOException(getString(R.string.module_update_pending_update))
+            throw IOException(appContext.getString(R.string.module_update_pending_update))
         }
 
         val previousRules = ManualHostsRuleManager.getRules(appContext)
@@ -1374,7 +1440,7 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
                     applyDns = false
                 )
             }
-            if (!applied) throw IOException(getString(R.string.exec_failed))
+            if (!applied) throw IOException(appContext.getString(R.string.exec_failed))
         } catch (error: Exception) {
             if (rulesSaved) {
                 runCatching { ManualHostsRuleManager.saveRules(appContext, previousRules) }
@@ -1437,7 +1503,7 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
         websiteButton: MaterialButton,
         source: RecommendedSource
     ) {
-        websiteButton.setOnClickListener { openRecommendedWebsite(source.websiteUrl) }
+        websiteButton.setOnClickListener { openExternalWebsite(source.websiteUrl) }
         updateRecommendedSourceButton(addButton, isRecommendedSourceAdded(source))
 
         addButton.setOnClickListener {
@@ -1465,7 +1531,7 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
         button.setIconResource(if (added) R.drawable.ic_check_circle else R.drawable.ic_add)
     }
 
-    private fun openRecommendedWebsite(url: String) {
+    private fun openExternalWebsite(url: String) {
         try {
             startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
         } catch (_: Exception) {
@@ -1497,17 +1563,8 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
         return Shell.cmd("[ -f \"$modulesUpdatePath\" ]").exec().isSuccess
     }
 
-    private fun hasMetaModuleHosts(): Boolean {
-        return Shell.cmd("[ -f \"$metaModuleHostsPath\" ]").exec().isSuccess
-    }
 
-    private fun isModuleActive(): Boolean {
-        val command = """
-            sh -c "if [ -d '$moduleDirPath' ] && [ ! -f '$moduleDisablePath' ] && [ ! -f '$moduleRemovePath' ]; then echo active; else echo inactive; fi"
-        """.trimIndent()
-        return Shell.cmd(command).exec().out.firstOrNull()?.trim() == "active"
-    }
-
+    private class ReportedHostsFailure(cause: Exception) : IOException(cause)
     private sealed class HostsStatus {
         data class Enabled(val ruleCount: Int) : HostsStatus()
         data class PendingEnable(val ruleCount: Int) : HostsStatus()
@@ -1541,12 +1598,6 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
         private const val RECOMMENDED_SOURCE_ADDED_ALPHA = 0.6f
         private const val DNS_PREFERENCES_NAME = "dns_preferences"
         private const val KEY_SELECTED_DNS_ID = "selected_dns_id"
-        private const val KEY_ORIGINAL_DNS_CAPTURED = "original_private_dns_captured"
-        private const val KEY_ORIGINAL_DNS_MODE = "original_private_dns_mode"
-        private const val KEY_ORIGINAL_DNS_SPECIFIER = "original_private_dns_specifier"
-        private const val PRIVATE_DNS_MODE_SETTING = "private_dns_mode"
-        private const val PRIVATE_DNS_SPECIFIER_SETTING = "private_dns_specifier"
-        private val APP_MANAGED_PRIVATE_DNS_HOSTS = setOf("dns.google", "dns.alidns.com", "dot.pub")
         private const val MERGED_HOSTS_FILE_NAME = "ADhosts"
         private const val DEFAULT_HOSTS_CONTENT = "127.0.0.1 localhost\n::1 localhost\n"
         private val URL_REGEX = "^https://[^\\s/\$.?#][^\\s]*$".toRegex(RegexOption.IGNORE_CASE)
@@ -1567,8 +1618,5 @@ class HostsFragment : BaseFragment<FragmentHostsBinding>(R.layout.fragment_hosts
     private val systemHostsPath = "/data/adb/modules/AD_lite/system/etc/hosts"
     private val metaModuleHostsPath = "/data/adb/metamodule/mnt/AD_lite/system/etc/hosts"
     private val modulesUpdatePath = "/data/adb/modules_update/AD_lite/system/etc/hosts"
-    private val moduleDirPath = "/data/adb/modules/AD_lite"
-    private val moduleDisablePath = "/data/adb/modules/AD_lite/disable"
-    private val moduleRemovePath = "/data/adb/modules/AD_lite/remove"
     private val runtimeHostsPath = "/system/etc/hosts"
 }

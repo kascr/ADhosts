@@ -14,12 +14,6 @@
         android:scaleType="centerCrop"
         android:visibility="invisible" />
 
-    <View
-        android:id="@+id/mainBackgroundScrim"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:visibility="invisible" />
-
     <androidx.viewpager2.widget.ViewPager2
         android:id="@+id/viewPager"
         android:layout_width="match_parent"

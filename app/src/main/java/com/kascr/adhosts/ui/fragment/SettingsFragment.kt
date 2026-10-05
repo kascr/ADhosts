@@ -3,6 +3,7 @@ package com.kascr.adhosts.ui.fragment
 import android.app.Activity
 import android.Manifest
 import android.content.Intent
+import android.content.Context
 import android.net.Uri
 import android.os.Bundle
 import android.os.Build
@@ -25,6 +26,7 @@ import com.kascr.adhosts.data.AppUpdateInstaller
 import com.kascr.adhosts.data.GithubAppUpdateManager
 import com.kascr.adhosts.data.HostsBackupCodec
 import com.kascr.adhosts.data.HostsSubscriptionManager
+import com.kascr.adhosts.data.HostsOperationJournal
 import com.kascr.adhosts.data.HostsOperationLock
 import com.kascr.adhosts.data.ManualHostsRuleManager
 import com.kascr.adhosts.data.ScheduledHostsUpdates
@@ -517,7 +519,7 @@ class SettingsFragment : BaseFragment<FragmentSettingsBinding>(R.layout.fragment
         val appContext = context.applicationContext
         val tooLargeMessage = getString(
             R.string.settings_import_too_large,
-            MAX_IMPORT_BYTES / (1024 * 1024)
+            MAX_HOSTS_BACKUP_BYTES / (1024 * 1024)
         )
         viewLifecycleOwner.lifecycleScope.launch {
             try {
@@ -534,6 +536,7 @@ class SettingsFragment : BaseFragment<FragmentSettingsBinding>(R.layout.fragment
                     }
 
                     HostsOperationLock.mutex.withLock {
+                      HostsOperationJournal.run(appContext) {
                         val previousSubscriptions = HostsSubscriptionManager.getSubscriptions(appContext)
                         val previousManualRules = backup.manualRules?.let {
                             ManualHostsRuleManager.getRules(appContext)
@@ -568,6 +571,7 @@ class SettingsFragment : BaseFragment<FragmentSettingsBinding>(R.layout.fragment
                         subscriptions.size to (
                             backup.manualRules?.size ?: ManualHostsRuleManager.getRules(appContext).size
                         )
+                      }
                     }
                 }
                 if (bindingOrNull == null) return@launch
@@ -589,7 +593,7 @@ class SettingsFragment : BaseFragment<FragmentSettingsBinding>(R.layout.fragment
             val read = input.read(buffer)
             if (read == -1) break
             totalBytes += read
-            if (totalBytes > MAX_IMPORT_BYTES) throw IOException(tooLargeMessage)
+            if (totalBytes > MAX_HOSTS_BACKUP_BYTES) throw IOException(tooLargeMessage)
             output.write(buffer, 0, read)
         }
         return output.toString(Charsets.UTF_8.name())
@@ -615,19 +619,18 @@ class SettingsFragment : BaseFragment<FragmentSettingsBinding>(R.layout.fragment
         viewLifecycleOwner.lifecycleScope.launch {
             try {
                 val counts = withContext(Dispatchers.IO) {
-                    val subscriptions = HostsSubscriptionManager.getSubscriptions(appContext)
-                    val manualRules = ManualHostsRuleManager.getRules(appContext)
-                    if (subscriptions.isEmpty() && manualRules.isEmpty()) {
+                    val snapshot = captureHostsBackup(appContext)
+                    if (snapshot.subscriptionCount == 0 && snapshot.manualRuleCount == 0) {
                         error(getString(R.string.settings_export_empty))
                     }
 
                     appContext.contentResolver.openOutputStream(uri)?.use { output ->
                         OutputStreamWriter(output, Charsets.UTF_8).use { writer ->
-                            writer.write(HostsBackupCodec.encode(subscriptions, manualRules))
+                            writer.write(snapshot.json)
                         }
                     } ?: error(getString(R.string.settings_export_create_failed))
 
-                    subscriptions.size to manualRules.size
+                    snapshot.subscriptionCount to snapshot.manualRuleCount
                 }
                 if (bindingOrNull == null) return@launch
                 showToast(getString(R.string.settings_export_success, counts.first, counts.second))
@@ -682,9 +685,29 @@ class SettingsFragment : BaseFragment<FragmentSettingsBinding>(R.layout.fragment
         private const val CRASH_TEST_REVEAL_COUNT = 3
         private const val CRASH_TEST_TAP_WINDOW_MS = 5_000L
         private const val MANUAL_CRASH_TEST_MESSAGE = "Manual crash test from Settings"
-        private const val MAX_IMPORT_BYTES = 2L * 1024 * 1024
         private const val QQ_GROUP_URI =
             "mqqopensdkapi://bizAgent/qm/qr?url=http%3A%2F%2Fqm.qq.com%2Fcgi-bin%2Fqm%2Fqr%3Ffrom%3Dapp%26p%3Dandroid%26jump_from%3Dwebapi%26k%3DCKq_oAB1qvAMWEwr98XEfuojKfLvt-i1"
         private val URL_REGEX = "^https://[^\\s/\$.?#][^\\s]*$".toRegex(RegexOption.IGNORE_CASE)
     }
 }
+
+// Both directions share a limit so every exported backup can be opened for import.
+internal const val MAX_HOSTS_BACKUP_BYTES = 8L * 1024 * 1024
+
+internal data class HostsBackupSnapshot(
+    val json: String,
+    val subscriptionCount: Int,
+    val manualRuleCount: Int
+)
+
+/** Capture and encode one committed configuration; document I/O must happen after the lock is released. */
+internal suspend fun captureHostsBackup(context: Context): HostsBackupSnapshot =
+    HostsOperationLock.mutex.withLock {
+        val subscriptions = HostsSubscriptionManager.getSubscriptions(context)
+        val manualRules = ManualHostsRuleManager.getRules(context)
+        val json = HostsBackupCodec.encode(subscriptions, manualRules)
+        require(json.toByteArray(Charsets.UTF_8).size <= MAX_HOSTS_BACKUP_BYTES) {
+            context.getString(R.string.settings_import_too_large, MAX_HOSTS_BACKUP_BYTES / (1024 * 1024))
+        }
+        HostsBackupSnapshot(json, subscriptions.size, manualRules.size)
+    }

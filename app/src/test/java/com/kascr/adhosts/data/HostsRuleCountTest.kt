@@ -39,4 +39,16 @@ class HostsRuleCountTest {
 
         assertEquals(1, HostsSubscriptionManager.countEffectiveRules(rules))
     }
+
+    @Test
+    fun `rejects malformed IPv6 and hostnames`() {
+        val rules = sequenceOf(
+            "::: invalid.example",
+            "0.0.0.0 @bad",
+            "0.0.0.0 -bad.example",
+            "0.0.0.0 123.456",
+            "2001:db8::1 valid.example"
+        )
+        assertEquals(1, HostsSubscriptionManager.countEffectiveRules(rules))
+    }
 }

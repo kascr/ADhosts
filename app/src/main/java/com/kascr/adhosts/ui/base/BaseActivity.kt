@@ -38,15 +38,13 @@ abstract class BaseActivity<VB : ViewBinding> : AppCompatActivity() {
         setTheme(R.style.AppTheme_NoAnimation_Background)
     }
 
-    protected fun bindStoredBackground(backgroundImage: ImageView, backgroundScrim: View) {
+    protected fun bindStoredBackground(backgroundImage: ImageView) {
         if (isFinishing || isDestroyed) {
             return
         }
 
-        backgroundScrim.setBackgroundColor(resolveThemeColor(R.attr.mainBackgroundScrimColor))
-
         if (backgroundImage.width == 0 || backgroundImage.height == 0) {
-            binding.root.post { bindStoredBackground(backgroundImage, backgroundScrim) }
+            binding.root.post { bindStoredBackground(backgroundImage) }
             return
         }
 
@@ -59,7 +57,7 @@ abstract class BaseActivity<VB : ViewBinding> : AppCompatActivity() {
 
         activityBackgroundBitmap?.takeIf { it != bitmap && !it.isRecycled }?.recycle()
         activityBackgroundBitmap = bitmap
-        updateBoundBackground(backgroundImage, backgroundScrim, bitmap)
+        updateBoundBackground(backgroundImage, bitmap)
     }
 
     protected fun resolveThemeColor(attr: Int): Int {
@@ -74,13 +72,12 @@ abstract class BaseActivity<VB : ViewBinding> : AppCompatActivity() {
         super.onDestroy()
     }
 
-    private fun clearBoundBackground(backgroundImage: ImageView, backgroundScrim: View) {
+    private fun clearBoundBackground(backgroundImage: ImageView) {
         activityBackgroundBitmap?.takeIf { !it.isRecycled }?.recycle()
         activityBackgroundBitmap = null
 
         backgroundImage.setImageDrawable(null)
         backgroundImage.visibility = View.INVISIBLE
-        backgroundScrim.visibility = View.INVISIBLE
 
         val backgroundColor = ContextCompat.getColor(this, R.color.md_theme_background)
         binding.root.setBackgroundColor(backgroundColor)
@@ -89,17 +86,15 @@ abstract class BaseActivity<VB : ViewBinding> : AppCompatActivity() {
 
     private fun updateBoundBackground(
         backgroundImage: ImageView,
-        backgroundScrim: View,
         bitmap: Bitmap?
     ) {
         if (bitmap == null) {
-            clearBoundBackground(backgroundImage, backgroundScrim)
+            clearBoundBackground(backgroundImage)
             return
         }
 
         backgroundImage.setImageBitmap(bitmap)
         backgroundImage.visibility = View.VISIBLE
-        backgroundScrim.visibility = View.VISIBLE
     }
 
     private fun prepareStoredWindowBackground() {

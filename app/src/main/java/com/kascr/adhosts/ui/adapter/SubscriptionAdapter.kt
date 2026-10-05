@@ -47,8 +47,6 @@ class SubscriptionAdapter(
 
     override fun getItemCount(): Int = subscriptions.size
 
-    fun getSubscription(position: Int): Subscription? = subscriptions.getOrNull(position)
-
     fun refreshRow(url: String) {
         val index = subscriptions.indexOfFirst { it.url == url }
         if (index >= 0) notifyItemChanged(index)

@@ -3,6 +3,7 @@ package com.kascr.adhosts.data
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertThrows
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -51,6 +52,46 @@ class ManualHostsRuleManagerTest {
 
         assertFalse(result.isValid)
         assertEquals(listOf(2, 3, 4, 5), result.invalidLines)
+    }
+
+    @Test
+    fun rejectsMalformedIpv6Address() {
+        val result = ManualHostsRuleManager.parseEditorText("::: invalid.example")
+        assertFalse(result.isValid)
+        assertEquals(listOf(1), result.invalidLines)
+    }
+
+    @Test
+    fun ignoresUtf8BomAndCommentsFromExternalEditors() {
+        val result = ManualHostsRuleManager.parseEditorText(
+            "\uFEFF# Instructions\r\n\r\n0.0.0.0 ads.example.com # block ads\r\n"
+        )
+        assertTrue(result.isValid)
+        assertEquals(listOf(ManualHostsRule("0.0.0.0", "ads.example.com")), result.rules)
+    }
+
+    @Test
+    fun rejectsDuplicateHostnamesOnTheSameLine() {
+        val result = ManualHostsRuleManager.parseEditorText("0.0.0.0 ads.example.com ads.example.com")
+        assertFalse(result.isValid)
+        assertEquals(listOf(1), result.invalidLines)
+    }
+
+    @Test
+    fun rejectingTooManyRulesKeepsTheCommittedGeneration() {
+        val previous = listOf(ManualHostsRule("0.0.0.0", "previous.example"))
+        ManualHostsRuleManager.saveRules(context, previous)
+        try {
+            assertThrows(IllegalArgumentException::class.java) {
+                ManualHostsRuleManager.saveRules(context,
+                    (0..ManualHostsRuleManager.MAX_RULES).map {
+                        ManualHostsRule("0.0.0.0", "host$it.example")
+                    })
+            }
+            assertEquals(previous, ManualHostsRuleManager.getRules(context))
+        } finally {
+            File(context.filesDir, "manual_hosts_rules.txt").delete()
+        }
     }
 
     @Test
@@ -125,6 +166,29 @@ class ManualHostsRuleManagerTest {
             merged.delete()
             cacheFile.delete()
             migratedFile.delete()
+        }
+    }
+
+    @Test
+    fun mergeSkipsMalformedDownloadedRules() {
+        val url = "https://example.com/malformed-hosts"
+        val subscriptions = File(context.filesDir, "hosts_subscriptions.json")
+        val merged = File(context.filesDir, "ADhosts")
+        val cached = HostsSubscriptionManager.cachedSourceForQuery(context, url)
+        try {
+            HostsSubscriptionManager.saveSubscriptions(context, listOf(Subscription("Test", url)))
+            cached.parentFile?.mkdirs()
+            cached.writeText("::: bad.example\n0.0.0.0 @bad\n0.0.0.0 good.example\n")
+            assertEquals(1, HostsSubscriptionManager.downloadAndMergeSubscriptions(
+                context, refreshRemote = false
+            ))
+            assertTrue(merged.readText().contains("0.0.0.0 good.example"))
+            assertFalse(merged.readText().contains("@bad"))
+            assertFalse(merged.readText().contains(":::"))
+        } finally {
+            subscriptions.delete()
+            merged.delete()
+            cached.delete()
         }
     }
 }

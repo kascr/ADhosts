@@ -2,6 +2,9 @@ package com.kascr.adhosts.data
 
 import android.content.Context
 import android.content.pm.PackageManager
+import android.content.pm.Signature
+import android.content.pm.SigningInfo
+import com.kascr.adhosts.data.RootEnvironment.quote as shellQuote
 import com.topjohnwu.superuser.Shell
 import java.io.File
 import java.io.IOException
@@ -55,12 +58,30 @@ object AppUpdateInstaller {
             ) != 0) {
             throw AppUpdateException(AppUpdateFailure.RELEASE_MISMATCH)
         }
-        val archiveSigners = archive.signingInfo?.apkContentsSigners?.toSet().orEmpty()
-        val installedSigners = installed.signingInfo?.apkContentsSigners?.toSet().orEmpty()
-        if (archiveSigners.isEmpty() || archiveSigners != installedSigners) {
+        if (!acceptsSigningLineage(installed.signingInfo, archive.signingInfo)) {
             throw AppUpdateException(AppUpdateFailure.SIGNATURE_MISMATCH)
         }
     }
+
+    internal fun acceptsSigningLineage(installed: SigningInfo?, archive: SigningInfo?): Boolean {
+        if (installed == null || archive == null) return false
+        val installedCurrent = installed.apkContentsSigners?.toSet().orEmpty()
+        val archiveCurrent = archive.apkContentsSigners?.toSet().orEmpty()
+        if (installedCurrent.isEmpty() || archiveCurrent.isEmpty()) return false
+        if (installed.hasMultipleSigners() || archive.hasMultipleSigners()) {
+            return installedCurrent == archiveCurrent
+        }
+        val history = archive.signingCertificateHistory?.toSet().orEmpty()
+        return acceptsSignerHistory(installedCurrent, archiveCurrent, history)
+    }
+
+    internal fun acceptsSignerHistory(
+        installedCurrent: Set<Signature>,
+        archiveCurrent: Set<Signature>,
+        archiveHistory: Set<Signature>
+    ): Boolean = installedCurrent.size == 1 && archiveCurrent.size == 1 &&
+        archiveHistory.contains(installedCurrent.first()) &&
+        archiveHistory.contains(archiveCurrent.first())
 
     fun installAsRoot(apk: File) {
         requireRoot()
@@ -88,5 +109,4 @@ object AppUpdateInstaller {
         }
     }
 
-    private fun shellQuote(value: String): String = "'${value.replace("'", "'\"'\"'")}'"
 }

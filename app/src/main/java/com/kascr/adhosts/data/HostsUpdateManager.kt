@@ -3,8 +3,8 @@ package com.kascr.adhosts.data
 import android.content.Context
 import com.google.gson.Gson
 import java.io.File
+import java.io.FileOutputStream
 import java.io.IOException
-import java.net.IDN
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import java.security.MessageDigest
@@ -33,21 +33,17 @@ object HostsUpdateManager {
     private const val PREVIOUS = "previous_applied_hosts"
     private const val HOSTS = "ADhosts"
     private const val META = "preview.json"
+    private const val SNAPSHOT_JOURNAL = "applied_snapshot_journal"
     private val gson = Gson()
-    private val hostnamePattern = Regex("(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\\.)*[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?")
+    private val snapshotLock = Any()
 
     private data class SavedPreview(val fingerprint: String, val preview: UpdatePreview)
 
-    fun normalizeDomain(input: String): String? {
-        val domain = input.trim().trimEnd('.').lowercase()
-        if (domain.isEmpty() || domain.any(Char::isWhitespace)) return null
-        val ascii = runCatching { IDN.toASCII(domain, IDN.USE_STD3_ASCII_RULES) }.getOrNull()
-            ?: return null
-        if (ascii.all { it.isDigit() || it == '.' }) return null
-        return ascii.takeIf(hostnamePattern::matches)
-    }
+    fun normalizeDomain(input: String): String? =
+        HostsRuleValidator.normalizeHostname(input.trim())
 
     fun prepare(context: Context): UpdatePreview {
+        recoverAppliedSnapshots(context)
         val fingerprint = configurationFingerprint(context)
         val pending = File(context.filesDir, PENDING)
         pending.deleteRecursively()
@@ -70,6 +66,7 @@ object HostsUpdateManager {
     }
 
     fun pendingPreview(context: Context): UpdatePreview? {
+        recoverAppliedSnapshots(context)
         val pending = File(context.filesDir, PENDING)
         val saved = runCatching { gson.fromJson(File(pending, META).readText(), SavedPreview::class.java) }
             .getOrNull() ?: return null
@@ -94,45 +91,129 @@ object HostsUpdateManager {
 
     fun discard(context: Context) { File(context.filesDir, PENDING).deleteRecursively() }
 
-    fun hasPrevious(context: Context): Boolean = File(File(context.filesDir, PREVIOUS), HOSTS).isFile
+    fun hasPrevious(context: Context): Boolean = synchronized(snapshotLock) {
+        recoverAppliedSnapshots(context)
+        File(File(context.filesDir, PREVIOUS), HOSTS).isFile
+    }
 
-    fun previousHosts(context: Context): File = File(File(context.filesDir, PREVIOUS), HOSTS)
-        .also { if (!it.isFile) throw IOException("Previous rules unavailable") }
+    fun previousHosts(context: Context): File = synchronized(snapshotLock) {
+        recoverAppliedSnapshots(context)
+        File(File(context.filesDir, PREVIOUS), HOSTS)
+            .also { if (!it.isFile) throw IOException("Previous rules unavailable") }
+    }
 
     /** Called only after a successful root write. Keeps one prior applied generation. */
-    fun recordApplied(context: Context, applied: File) {
+    fun recordApplied(context: Context, applied: File, afterSlotChange: (() -> Unit)? = null) =
+        synchronized(snapshotLock) {
+            recoverAppliedSnapshots(context)
+            val current = File(context.filesDir, CURRENT)
+            val previous = File(context.filesDir, PREVIOUS)
+            val subscriptionsJson = gson.toJson(HostsSubscriptionManager.getSubscriptions(context))
+            val manualText = ManualHostsRuleManager.getEditorText(context)
+            val currentHosts = File(current, HOSTS)
+            if (currentHosts.isFile && runCatching {
+                    File(current, "subscriptions.json").readText(Charsets.UTF_8) == subscriptionsJson &&
+                        File(current, "manual.txt").readText(Charsets.UTF_8) == manualText &&
+                        sameRules(currentHosts, applied)
+                }.getOrDefault(false)) return@synchronized
+            val staging = File(context.filesDir, "$CURRENT.new")
+            staging.deleteRecursively()
+            if (!staging.mkdirs()) throw IOException("Cannot save applied rules")
+            val journal = File(context.filesDir, SNAPSHOT_JOURNAL)
+            try {
+                Files.copy(applied.toPath(), File(staging, HOSTS).toPath(), StandardCopyOption.REPLACE_EXISTING)
+                File(staging, "subscriptions.json").writeText(subscriptionsJson, Charsets.UTF_8)
+                File(staging, "manual.txt").writeText(manualText, Charsets.UTF_8)
+                val sourceSnapshot = File(staging, "sources")
+                sourceSnapshot.mkdirs()
+                HostsSubscriptionManager.getSubscriptions(context).filter { it.enabled }.forEach { subscription ->
+                    val source = HostsSubscriptionManager.cachedSourceForQuery(context, subscription.url)
+                    if (source.isFile) Files.copy(source.toPath(), File(sourceSnapshot, source.name).toPath(),
+                        StandardCopyOption.REPLACE_EXISTING)
+                }
+                val preparing = File(context.filesDir, "$SNAPSHOT_JOURNAL.new")
+                if (preparing.exists() && !preparing.deleteRecursively()) throw IOException("Cannot clear snapshot journal")
+                if (!preparing.mkdirs()) throw IOException("Cannot create snapshot journal")
+                try {
+                    writeSnapshotMarker(File(preparing, "had-current"), if (current.isDirectory) "1" else "0")
+                    writeSnapshotMarker(File(preparing, "had-previous"), if (previous.isDirectory) "1" else "0")
+                    writeSnapshotMarker(File(preparing, "ready"), "1")
+                    if (!preparing.renameTo(journal)) throw IOException("Cannot activate snapshot journal")
+                } finally { preparing.deleteRecursively() }
+                try {
+                    if (previous.isDirectory && !previous.renameTo(File(journal, "previous"))) {
+                        throw IOException("Cannot preserve previous rules")
+                    }
+                    afterSlotChange?.invoke()
+                    if (current.isDirectory && !current.renameTo(previous)) {
+                        throw IOException("Cannot save previous rules")
+                    }
+                    if (!staging.renameTo(current)) throw IOException("Cannot save applied rules")
+                    writeSnapshotMarker(File(journal, "committed"), "1")
+                } catch (error: Exception) {
+                    runCatching { writeSnapshotMarker(File(journal, "rollback"), "1") }
+                        .onFailure(error::addSuppressed)
+                    runCatching { recoverAppliedSnapshots(context) }.onFailure(error::addSuppressed)
+                    throw error
+                }
+                CompletedJournalCleanup.finish(journal)
+            } finally {
+                if (!journal.exists() || File(journal, "rollback").isFile ||
+                    File(journal, "committed").isFile) staging.deleteRecursively()
+            }
+        }
+
+    internal fun recoverAppliedSnapshots(context: Context) = synchronized(snapshotLock) {
+        val journal = File(context.filesDir, SNAPSHOT_JOURNAL)
+        CompletedJournalCleanup.discardCompleted(journal)
+        if (!journal.exists()) return@synchronized
+        if (File(journal, "committed").readTextOrNull() == "1") {
+            CompletedJournalCleanup.finish(journal)
+            return@synchronized
+        }
+        if (File(journal, "ready").readTextOrNull() != "1") {
+            throw IOException("Snapshot journal is incomplete")
+        }
+        val hadCurrent = File(journal, "had-current").readTextOrNull() == "1"
+        val hadPrevious = File(journal, "had-previous").readTextOrNull() == "1"
         val current = File(context.filesDir, CURRENT)
         val previous = File(context.filesDir, PREVIOUS)
-        val subscriptionsJson = gson.toJson(HostsSubscriptionManager.getSubscriptions(context))
-        val manualText = ManualHostsRuleManager.getEditorText(context)
-        val currentHosts = File(current, HOSTS)
-        if (currentHosts.isFile && runCatching {
-                File(current, "subscriptions.json").readText(Charsets.UTF_8) == subscriptionsJson &&
-                    File(current, "manual.txt").readText(Charsets.UTF_8) == manualText &&
-                    sameRules(currentHosts, applied)
-            }.getOrDefault(false)) return
         val staging = File(context.filesDir, "$CURRENT.new")
-        staging.deleteRecursively()
-        if (!staging.mkdirs()) throw IOException("Cannot save applied rules")
-        try {
-            Files.copy(applied.toPath(), File(staging, HOSTS).toPath(), StandardCopyOption.REPLACE_EXISTING)
-            File(staging, "subscriptions.json").writeText(subscriptionsJson, Charsets.UTF_8)
-            File(staging, "manual.txt").writeText(manualText, Charsets.UTF_8)
-            val sourceSnapshot = File(staging, "sources")
-            sourceSnapshot.mkdirs()
-            HostsSubscriptionManager.getSubscriptions(context).filter { it.enabled }.forEach { subscription ->
-                val source = HostsSubscriptionManager.cachedSourceForQuery(context, subscription.url)
-                if (source.isFile) Files.copy(source.toPath(), File(sourceSnapshot, source.name).toPath(),
-                    StandardCopyOption.REPLACE_EXISTING)
+        val savedPrevious = File(journal, "previous")
+        if (File(journal, "rollback").readTextOrNull() == "1") {
+            val oldCurrentMoved = previous.exists() && (!hadPrevious || savedPrevious.exists())
+            if (oldCurrentMoved) {
+                if (current.exists() && !current.deleteRecursively()) throw IOException("Cannot recover current rules")
+                if (!previous.renameTo(current)) throw IOException("Cannot restore current rules")
+            } else if (!hadCurrent && current.exists() && !current.deleteRecursively()) {
+                throw IOException("Cannot remove interrupted current rules")
             }
-            previous.deleteRecursively()
-            val movedCurrent = current.isDirectory
-            if (movedCurrent && !current.renameTo(previous)) throw IOException("Cannot save previous rules")
-            if (!staging.renameTo(current)) {
-                if (movedCurrent) previous.renameTo(current)
-                throw IOException("Cannot save applied rules")
+            if (hadCurrent && !current.isDirectory) throw IOException("Current rules are missing")
+            if (savedPrevious.isDirectory && !savedPrevious.renameTo(previous)) {
+                throw IOException("Cannot restore previous rules")
             }
-        } finally { staging.deleteRecursively() }
+            if (staging.exists() && !staging.deleteRecursively()) throw IOException("Cannot clear staged rules")
+        } else {
+            if (hadPrevious && !savedPrevious.isDirectory &&
+                !previous.renameTo(savedPrevious)) throw IOException("Cannot preserve previous rules")
+            if (hadCurrent && !previous.isDirectory &&
+                !current.renameTo(previous)) throw IOException("Cannot preserve current rules")
+            if (!current.isDirectory && !staging.renameTo(current)) {
+                throw IOException("Cannot finish applied rules")
+            }
+            writeSnapshotMarker(File(journal, "committed"), "1")
+        }
+        CompletedJournalCleanup.finish(journal)
+    }
+
+    private fun File.readTextOrNull(): String? =
+        runCatching { takeIf(File::isFile)?.readText(Charsets.UTF_8) }.getOrNull()
+
+    private fun writeSnapshotMarker(target: File, value: String) {
+        FileOutputStream(target).use { output ->
+            output.write(value.toByteArray(Charsets.UTF_8))
+            output.fd.sync()
+        }
     }
 
     fun restorePreviousConfiguration(context: Context) {
@@ -161,21 +242,15 @@ object HostsUpdateManager {
         val hostname = normalizeDomain(raw) ?: return null
         val manual = ManualHostsRuleManager.getRules(context).firstOrNull { it.hostname == hostname }
         if (manual != null) return DomainMatch(hostname, manual.address, "Manual", currentlyApplied &&
-            containsHost(appliedHosts(context), hostname, manual.address), manual = true)
+            RootHostsStore.runtimeContains(hostname, manual.address), manual = true)
         for (subscription in HostsSubscriptionManager.getSubscriptions(context).filter { it.enabled }) {
             val file = HostsSubscriptionManager.cachedSourceForQuery(context, subscription.url)
             val address = findAddress(file, hostname) ?: continue
             return DomainMatch(hostname, address, subscription.name, currentlyApplied &&
-                containsHost(appliedHosts(context), hostname, address))
+                RootHostsStore.runtimeContains(hostname, address))
         }
         return null
     }
-
-    private fun containsHost(file: File, hostname: String, address: String): Boolean =
-        findAddress(file, hostname) == address
-
-    private fun appliedHosts(context: Context): File = File(File(context.filesDir, CURRENT), HOSTS)
-        .takeIf(File::isFile) ?: File(context.filesDir, HOSTS)
 
     private fun findAddress(file: File, hostname: String): String? {
         if (!file.isFile) return null
@@ -183,11 +258,7 @@ object HostsUpdateManager {
             for (line in lines) {
                 val fields = line.substringBefore('#').trim().split(Regex("\\s+"))
                 if (fields.size < 2 || !HostsSubscriptionManager.isNumericIpAddress(fields[0])) continue
-                if (fields.drop(1).any { raw ->
-                        val normalized = raw.lowercase().trimEnd('.')
-                        normalized == hostname || (normalized.any { it.code > 127 } &&
-                            normalizeDomain(normalized) == hostname)
-                    }) return fields[0]
+                if (fields.drop(1).any { normalizeDomain(it) == hostname }) return fields[0]
             }
         }
         return null

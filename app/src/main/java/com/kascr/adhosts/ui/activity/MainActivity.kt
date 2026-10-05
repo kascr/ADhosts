@@ -12,6 +12,7 @@ import android.graphics.RenderEffect
 import android.graphics.Shader
 import android.os.Build
 import android.os.Bundle
+import android.view.Menu
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
@@ -39,7 +40,6 @@ class MainActivity : BaseActivity<ActivityMainBinding>() {
 
     private lateinit var adapter: ViewPagerAdapter
     private lateinit var mainBackgroundImage: ImageView
-    private lateinit var mainBackgroundScrim: View
     private lateinit var navBar: BottomNavigationView
 
     private val pageChangeCallback = object : ViewPager2.OnPageChangeCallback() {
@@ -135,7 +135,6 @@ class MainActivity : BaseActivity<ActivityMainBinding>() {
         } else {
             mainBackgroundImage.setImageBitmap(bitmap)
             mainBackgroundImage.visibility = View.VISIBLE
-            mainBackgroundScrim.visibility = View.VISIBLE
             updateNavGlassBackground(bitmap)
         }
     }
@@ -146,8 +145,6 @@ class MainActivity : BaseActivity<ActivityMainBinding>() {
 
     private fun initViews() {
         mainBackgroundImage = binding.root.findViewById(R.id.mainBackgroundImage)
-        mainBackgroundScrim = binding.root.findViewById(R.id.mainBackgroundScrim)
-        mainBackgroundScrim.setBackgroundColor(resolveThemeColor(R.attr.mainBackgroundScrimColor))
     }
 
     private fun initInsets() {
@@ -173,6 +170,11 @@ class MainActivity : BaseActivity<ActivityMainBinding>() {
 
     private fun initCustomNav() {
         navBar = binding.customNav.navBar
+        navBar.menu.apply {
+            add(Menu.NONE, R.id.nav_hosts, 0, R.string.xit).setIcon(R.drawable.ic_shield)
+            add(Menu.NONE, R.id.nav_tools, 1, R.string.page_title_tools).setIcon(R.drawable.ic_wrench)
+            add(Menu.NONE, R.id.nav_settings, 2, R.string.settings_title).setIcon(R.drawable.ic_settings)
+        }
         navBar.itemIconTintList = navItemColorStateList()
         navBar.itemTextColor = navItemColorStateList()
         navBar.itemActiveIndicatorColor =
@@ -240,7 +242,6 @@ class MainActivity : BaseActivity<ActivityMainBinding>() {
         customBackgroundBitmap = null
         mainBackgroundImage.setImageDrawable(null)
         mainBackgroundImage.visibility = View.INVISIBLE
-        mainBackgroundScrim.visibility = View.INVISIBLE
         clearNavGlassBackground()
 
         if (applyWindowBackground) {

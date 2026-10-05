@@ -1,5 +1,6 @@
 package com.kascr.adhosts.data
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.util.Log
 import com.google.gson.Gson
@@ -11,7 +12,6 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
 import java.net.HttpURLConnection
-import java.net.IDN
 import java.net.URI
 import java.net.URL
 import java.nio.file.AtomicMoveNotSupportedException
@@ -33,6 +33,7 @@ object HostsSubscriptionManager {
     private const val ENABLED_DIRECTORY = "enabled"
     private const val DISABLED_DIRECTORY = "disabled"
     private const val LEGACY_SOURCE_CACHE_DIRECTORY = "hosts_source_cache"
+    private const val COMMIT_JOURNAL = "hosts_update_commit_journal"
     private const val CONNECT_TIMEOUT_MS = 15_000
     private const val READ_TIMEOUT_MS = 20_000
     private const val MAX_REMOTE_FILE_BYTES = 10 * 1024 * 1024
@@ -42,6 +43,7 @@ object HostsSubscriptionManager {
     private val subscriptionsLock = Any()
 
     fun getSubscriptions(context: Context): List<Subscription> {
+        HostsOperationJournal.ensureRecovered(context)
         return synchronized(subscriptionsLock) {
             readSubscriptions(context).also { subscriptions ->
                 subscriptions.forEach { subscription ->
@@ -53,6 +55,7 @@ object HostsSubscriptionManager {
     }
 
     private fun readSubscriptions(context: Context): List<Subscription> {
+        recoverIncompleteCommit(context)
         val file = File(context.filesDir, FILE_NAME)
         if (!file.exists()) return emptyList()
 
@@ -271,23 +274,37 @@ object HostsSubscriptionManager {
 
     internal data class PreviewBuild(val merged: File, val ruleCount: Int, val cachedSources: List<String>)
 
-    internal fun commitPreview(context: Context, directory: File) {
+    internal fun commitPreview(
+        context: Context,
+        directory: File,
+        afterReplacement: ((Int) -> Unit)? = null
+    ) = synchronized(subscriptionsLock) {
+        recoverIncompleteCommit(context)
         val replacements = getSubscriptions(context).filter { it.enabled }.map { subscription ->
             File(directory, sourceFileName(subscription.url)) to sourceFile(context, subscription.url, true)
         } + (File(directory, MERGED_HOSTS_NAME) to File(context.filesDir, MERGED_HOSTS_NAME))
         replacements.forEach { (staged, _) ->
             if (!staged.isFile) throw IOException("Preview file missing: ${staged.name}")
         }
-        val backupDirectory = File(directory, "rollback")
-        if (!backupDirectory.mkdirs()) throw IOException("Cannot create update rollback directory")
+        val journal = File(context.filesDir, COMMIT_JOURNAL)
+        val preparing = File(context.filesDir, "$COMMIT_JOURNAL.new")
+        if (journal.exists()) throw IOException("Update recovery is still pending")
+        if (preparing.exists() && !preparing.deleteRecursively()) throw IOException("Cannot clear old update journal")
+        if (!preparing.mkdirs()) throw IOException("Cannot create update journal")
         try {
-            val backups = replacements.mapIndexed { index, (_, target) ->
-                File(backupDirectory, "$index.old").also { backup ->
-                    if (target.isFile) Files.copy(target.toPath(), backup.toPath())
+            val entries = replacements.mapIndexed { index, (staged, target) ->
+                val relative = target.relativeTo(context.filesDir).path
+                JournalEntry(relative, target.isFile).also { entry ->
+                    if (entry.existed) {
+                        preserveJournalFile(target, File(preparing, "$index.old"))
+                    }
+                    preserveJournalFile(staged, File(preparing, "$index.new"))
                 }
             }
+            writeJournalFile(File(preparing, "entries.json"), gson.toJson(entries))
+            moveAtomically(preparing, journal)
             try {
-                replacements.forEach { (staged, target) ->
+                replacements.forEachIndexed { index, (staged, target) ->
                     val parent = target.parentFile ?: throw IOException("Preview target has no parent")
                     if (!parent.isDirectory && !parent.mkdirs()) throw IOException("Cannot create source directory")
                     val temporary = File.createTempFile("${target.name}.", ".new", parent)
@@ -295,20 +312,90 @@ object HostsSubscriptionManager {
                         Files.copy(staged.toPath(), temporary.toPath(), StandardCopyOption.REPLACE_EXISTING)
                         moveAtomically(temporary, target)
                     } finally { temporary.delete() }
+                    afterReplacement?.invoke(index)
                 }
+                writeJournalFile(File(journal, "committed"), "ok")
             } catch (error: Exception) {
-                replacements.forEachIndexed { index, (_, target) ->
-                    runCatching {
-                        val backup = backups[index]
-                        if (backup.isFile) Files.copy(backup.toPath(), target.toPath(),
-                            StandardCopyOption.REPLACE_EXISTING)
-                        else Files.deleteIfExists(target.toPath())
-                    }.onFailure(error::addSuppressed)
-                }
+                runCatching { writeJournalFile(File(journal, "rollback"), "ok") }
+                    .onFailure(error::addSuppressed)
+                runCatching { recoverIncompleteCommit(context) }.onFailure(error::addSuppressed)
                 throw error
             }
-        } finally { backupDirectory.deleteRecursively() }
+            CompletedJournalCleanup.finish(journal)
+        } finally {
+            preparing.deleteRecursively()
+        }
     }
+
+    internal fun recoverIncompleteCommit(context: Context) = synchronized(subscriptionsLock) {
+        val journal = File(context.filesDir, COMMIT_JOURNAL)
+        CompletedJournalCleanup.discardCompleted(journal)
+        if (!journal.exists()) return@synchronized
+        if (File(journal, "committed").readTextOrNull() == "ok") {
+            File(context.filesDir, "pending_hosts_update").deleteRecursively()
+            CompletedJournalCleanup.finish(journal)
+            return@synchronized
+        }
+        val entriesFile = File(journal, "entries.json")
+        val entries = runCatching {
+            JsonParser.parseString(entriesFile.readText(Charsets.UTF_8)).asJsonArray.map { element ->
+                val item = element.asJsonObject
+                JournalEntry(item.get("path").asString, item.get("existed").asBoolean)
+            }
+        }.getOrElse { throw IOException("Update journal is damaged", it) }
+        val rollingBack = File(journal, "rollback").readTextOrNull() == "ok"
+        entries.forEachIndexed { index, entry ->
+            val target = File(context.filesDir, entry.path).canonicalFile
+            if (!target.toPath().startsWith(context.filesDir.canonicalFile.toPath()) ||
+                (rollingBack && entry.existed && !File(journal, "$index.old").isFile) ||
+                (!rollingBack && !File(journal, "$index.new").isFile)) {
+                throw IOException("Update journal is incomplete")
+            }
+        }
+        entries.forEachIndexed { index, entry ->
+            val target = File(context.filesDir, entry.path)
+            if (!rollingBack || entry.existed) {
+                val parent = target.parentFile ?: throw IOException("Update target has no parent")
+                if (!parent.isDirectory && !parent.mkdirs()) throw IOException("Cannot recover update directory")
+                val temporary = File.createTempFile("${target.name}.", ".restore", parent)
+                try {
+                    val saved = File(journal, if (rollingBack) "$index.old" else "$index.new")
+                    Files.copy(saved.toPath(), temporary.toPath(),
+                        StandardCopyOption.REPLACE_EXISTING)
+                    moveAtomically(temporary, target)
+                } finally { temporary.delete() }
+            } else Files.deleteIfExists(target.toPath())
+        }
+        if (!rollingBack) File(context.filesDir, "pending_hosts_update").deleteRecursively()
+        CompletedJournalCleanup.finish(journal)
+    }
+
+    private data class JournalEntry(val path: String, val existed: Boolean)
+
+    private fun preserveJournalFile(source: File, target: File) {
+        try {
+            Files.createLink(target.toPath(), source.toPath())
+        } catch (_: Exception) {
+            FileOutputStream(target).use { output ->
+                source.inputStream().use { it.copyTo(output) }
+                output.fd.sync()
+            }
+        }
+    }
+
+    private fun writeJournalFile(target: File, content: String) {
+        val temporary = File.createTempFile("${target.name}.", ".tmp", target.parentFile)
+        try {
+            FileOutputStream(temporary).use { output ->
+                output.write(content.toByteArray(Charsets.UTF_8))
+                output.fd.sync()
+            }
+            moveAtomically(temporary, target)
+        } finally { temporary.delete() }
+    }
+
+    private fun File.readTextOrNull(): String? =
+        runCatching { takeIf(File::isFile)?.readText(Charsets.UTF_8) }.getOrNull()
 
     internal fun cachedSourceForQuery(context: Context, url: String): File = sourceFile(context, url, true)
 
@@ -318,28 +405,26 @@ object HostsSubscriptionManager {
     private fun isEffectiveHostsRule(line: String): Boolean {
         val fields = hostsFields(line)
         if (fields.size < 2 || !isNumericIpAddress(fields.first())) return false
-        return fields.drop(1).any { hostname -> hostname.lowercase() !in LOCAL_HOST_NAMES }
+        return fields.drop(1).any { hostname ->
+            HostsRuleValidator.normalizeHostname(hostname)?.let {
+                !HostsRuleValidator.isLocalHostname(it)
+            } == true
+        }
     }
 
     private fun isHostsFileEntry(line: String): Boolean {
         val fields = hostsFields(line)
-        return fields.size >= 2 && isNumericIpAddress(fields.first())
+        return fields.size >= 2 && isNumericIpAddress(fields.first()) &&
+            fields.drop(1).any { HostsRuleValidator.normalizeHostname(it) != null }
     }
 
     private fun hostsFields(line: String): List<String> =
         line.substringBefore('#').trim().split(WHITESPACE_REGEX).filter(String::isNotEmpty)
 
-    internal fun isNumericIpAddress(value: String): Boolean {
-        if (value.contains(':')) {
-            return value.count { it == ':' } >= 2 && IPV6_ADDRESS_REGEX.matches(value)
-        }
-        val octets = value.split('.')
-        return octets.size == 4 && octets.all { octet ->
-            octet.isNotEmpty() && octet.length <= 3 &&
-                octet.all(Char::isDigit) && octet.toIntOrNull()?.let { it in 0..255 } == true
-        }
-    }
+    internal fun isNumericIpAddress(value: String): Boolean =
+        HostsRuleValidator.isNumericIpAddress(value)
 
+    @SuppressLint("SuspiciousIndentation")
     private fun downloadSourceToFile(urlString: String, target: File) {
         val parent = target.parentFile ?: throw IOException("Subscription path has no parent")
         if (!parent.isDirectory && !parent.mkdirs()) {
@@ -449,17 +534,12 @@ object HostsSubscriptionManager {
                 hasMeaningfulLine = true
                 val fields = hostsFields(trimmed)
                 if (fields.size < 2 || !isNumericIpAddress(fields.first())) continue
-                hasHostsEntry = true
                 val address = fields.first()
                 for (rawHostname in fields.drop(1)) {
-                    val normalized = rawHostname.lowercase().trimEnd('.')
-                    val hostname = if (normalized.any { it.code > 127 }) {
-                        runCatching { IDN.toASCII(normalized, IDN.USE_STD3_ASCII_RULES) }
-                            .getOrNull() ?: continue
-                    } else normalized
+                    val hostname = HostsRuleValidator.normalizeHostname(rawHostname) ?: continue
+                    hasHostsEntry = true
                     if (
-                        hostname.isEmpty() ||
-                        hostname in LOCAL_HOST_NAMES ||
+                        HostsRuleValidator.isLocalHostname(hostname) ||
                         hostname in manualHostnames
                     ) continue
                     val bucket = (hostname.hashCode() and Int.MAX_VALUE) % MERGE_BUCKET_COUNT
@@ -476,6 +556,7 @@ object HostsSubscriptionManager {
         }
     }
 
+    @SuppressLint("SuspiciousIndentation")
     private fun writeMergedHosts(
         subscriptions: List<Subscription>,
         bucketFiles: List<File>,
@@ -678,12 +759,5 @@ object HostsSubscriptionManager {
     }
 
     private val WHITESPACE_REGEX = "\\s+".toRegex()
-    private val IPV6_ADDRESS_REGEX = "[0-9a-fA-F:.]+".toRegex()
-    private val LOCAL_HOST_NAMES = setOf(
-        "localhost",
-        "localhost.localdomain",
-        "ip6-localhost",
-        "ip6-loopback"
-    )
     private const val TAG = "HostsSubscriptions"
 }
